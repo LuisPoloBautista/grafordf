@@ -49,24 +49,6 @@ El servidor reconstruye el grafo en memoria al arrancar: después de editar un C
 
 Los autores bibliográficos se enlazan automáticamente cuando su nombre coincide, sin acentos ni puntuación, con un único nombre o firma registrado. Los demás se conservan como texto; no se asignan por semejanza para evitar atribuciones incorrectas. Los registros bibliográficos y las obras de la columna Trabajo se conservan como registros separados, sin deduplicación automática. Las cifras de publicaciones cuentan estos registros, no necesariamente obras únicas. La aplicación muestra las comunidades declaradas en los datos; no calcula agrupaciones estadísticas.
 
-## Subir a GitHub
-
-`.gitignore` excluye todos los documentos Word, incluido `TESIS RAQUEL- CAP 1 Y 2.docx`, los entornos, secretos, cachés y materiales antiguos de investigación. Los documentos originales permanecen en tu computadora.
-
-Desde esta carpeta, con Git instalado:
-
-```sh
-git init
-git add .
-git status
-git commit -m "Aplicación prosopográfica con backend Python"
-git branch -M main
-git remote add origin https://github.com/TU_USUARIO/TU_REPOSITORIO.git
-git push -u origin main
-```
-
-También se incluye `proyecto-github.zip`: extrae su contenido y súbelo a la raíz de un repositorio vacío, conservando las carpetas y los archivos ocultos como `.gitignore`. El ZIP no incluye documentos Word ni los programas anteriores. `.gitignore` protege las operaciones de Git; al subir archivos manualmente por el navegador, utiliza el contenido de este ZIP.
-
 ## Desplegar en Render
 
 El repositorio contiene `render.yaml`. En Render, crea un **Blueprint**, conecta el repositorio y revisa y aplica la configuración del servicio.
