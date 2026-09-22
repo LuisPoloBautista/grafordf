@@ -1,0 +1,25 @@
+﻿# Documentos de tesis (se conservan localmente)
+*.docx
+*.doc
+~$*
+# Entornos, secretos y archivos generados
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+.pytest_cache/
+*.log
+*.zip
+/data/grafo.ttl
+# Material original de investigación; no forma parte de la aplicación
+/fuseki iniciar.txt
+/grafo_posopográfico.py
+/poso-csv.csv
+/poso_linked_data.txt
+/ttl/
+/tesis raquel/*.html
+/tesis raquel/*.txt
+/tesis raquel/poso.csv

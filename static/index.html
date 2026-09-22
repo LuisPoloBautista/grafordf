@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AHCM | Grafo prosopográfico</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Archivo Histórico de Ciencias de México</p>
+      <h1>Grafo prosopográfico</h1>
+    </div>
+    <div id="stats" class="stats" aria-live="polite"></div>
+  </header>
+  <main class="workspace">
+    <section class="search-panel">
+      <label for="search">Buscar una persona</label>
+      <div class="search-row">
+        <input id="search" type="search" placeholder="Nombre, firma o apellido" autocomplete="off" maxlength="120">
+        <button id="clear" type="button" title="Limpiar búsqueda">Limpiar</button>
+      </div>
+      <p class="hint">Explora el cat?logo o busca por nombre, firma o apellido, con o sin acentos.</p>
+      <div id="results" class="results" aria-live="polite"></div>
+      <button id="more" type="button" hidden>Mostrar m?s</button>
+      <a class="download" href="/api/grafo.ttl">Descargar grafo RDF</a>
+    </section>
+    <section id="detail" class="detail empty-state" aria-live="polite">
+      <span class="detail-mark">+</span>
+      <h2>Selecciona una persona</h2>
+      <p>Su información, publicaciones y relaciones aparecerán aquí.</p>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
