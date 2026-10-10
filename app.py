@@ -3,12 +3,14 @@ from contextlib import asynccontextmanager
 import unicodedata
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from rdflib import RDF, RDFS, URIRef
 from rdflib.namespace import FOAF
 
 from rdf_pipeline import PERSON, BIBFRAME, SCHEMA, BIO, build_graph
+
+from graph_tools import GraphSearch, graph_html
 
 ROOT = Path(__file__).resolve().parent
 
@@ -48,15 +50,17 @@ async def lifespan(app):
         app.state.people.append(({
             **compact(graph, person), 'slug': str(person).rsplit('/', 1)[-1]
         }, normalize(' '.join(aliases))))
+    app.state.search = GraphSearch(graph, app.state.people)
+    app.state.graph_pages = {}
     app.state.stats = {
-        'triples': len(graph), 'personas': len(app.state.people),
+        'fuentes': ['comunidades.csv', 'dataset/bibliografica.csv'], 'triples': len(graph), 'personas': len(app.state.people),
         'publicaciones': len(set(graph.subjects(RDF.type, BIBFRAME.Work)))
     }
     app.state.turtle = graph.serialize(format='turtle', encoding='utf-8')
     yield
 
 
-app = FastAPI(title='Grafo prosopográfico AHCM', lifespan=lifespan,
+app = FastAPI(title='Catálogo de autoridades de actores en el campo de la botánica XVIII', lifespan=lifespan,
               docs_url=None, redoc_url=None)
 app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
 
@@ -80,7 +84,7 @@ def stats(request: Request):
 def people(request: Request, q: str = Query('', max_length=120),
            limit: int = Query(30, ge=1, le=100), offset: int = Query(0, ge=0)):
     query = normalize(q.strip())
-    matches = [entry for entry, aliases in request.app.state.people if query in aliases]
+    matches = request.app.state.search.search(query)
     return matches[offset:offset + limit]
 
 
@@ -114,6 +118,42 @@ def person_relations(request: Request, person_id: str):
         if isinstance(obj, URIRef) and obj != person and predicate != RDF.type:
             relations.append({'predicate': key(predicate), 'target': compact(graph, obj)})
     return sorted(relations, key=lambda item: (item['predicate'], item['target']['label']))
+
+
+@app.get('/api/recursos')
+def resource_detail(request: Request, uri: str = Query(..., max_length=2000)):
+    graph = request.app.state.graph
+    resource = URIRef(uri)
+    if not any(graph.triples((resource, None, None))):
+        raise HTTPException(status_code=404, detail='Recurso no encontrado')
+    properties = {}
+    for predicate, obj in sorted(graph.predicate_objects(resource), key=lambda pair: tuple(map(str, pair))):
+        properties.setdefault(key(predicate), []).append(compact(graph, obj) if isinstance(obj, URIRef) else str(obj))
+    instances = []
+    for instance in sorted(graph.objects(resource, BIBFRAME.hasInstance), key=str):
+        fields = {}
+        for predicate, obj in sorted(graph.predicate_objects(instance), key=lambda pair: tuple(map(str, pair))):
+            fields.setdefault(key(predicate), []).append(compact(graph, obj) if isinstance(obj, URIRef) else str(obj))
+        instances.append({**compact(graph, instance), 'properties': fields})
+    return {**compact(graph, resource), 'properties': properties, 'instances': instances,
+            'actors': [compact(graph, actor) for actor in graph.subjects(FOAF.made, resource)]}
+
+
+@app.get('/grafo', response_class=HTMLResponse)
+def full_graph(request: Request):
+    cache = request.app.state.graph_pages
+    if 'full' not in cache:
+        cache['full'] = graph_html(request.app.state.graph, label)
+    return cache['full']
+
+
+@app.get('/api/personas/{person_id}/grafo', response_class=HTMLResponse)
+def actor_graph(request: Request, person_id: str):
+    graph, person = get_person(request, person_id)
+    cache = request.app.state.graph_pages
+    if person_id not in cache:
+        cache[person_id] = graph_html(graph, label, person)
+    return cache[person_id]
 
 
 @app.get('/api/grafo.ttl')

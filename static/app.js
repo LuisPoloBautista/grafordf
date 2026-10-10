@@ -16,6 +16,7 @@ const labels = {
   wasAttributedTo: 'Otorgado por', assignedEponym: 'Epónimo asignado', awardedTo: 'Otorgado a',
   comment: 'Notas', made: 'Publicación o aportación', externalLink: 'Identificador externo'
 };
+Object.assign(labels, {title: 'Título', mainTitle: 'Título principal', contribution: 'Autoría', agent: 'Autor', provisionActivity: 'Publicación', date: 'Fecha', language: 'Idioma', genreForm: 'Tipo de documento', subject: 'Área temática', extent: 'Extensión', note: 'Notas', editionStatement: 'Edición', identifiedBy: 'Identificador', electronicLocator: 'Acceso al documento', instanceOf: 'Obra', sourceFile: 'Archivo fuente', sourceRow: 'Fila del CSV', matchMethod: 'Criterio de vinculación', value: 'Valor', 'bibliografia-volumen': 'Volumen', 'bibliografia-pagina-inicio': 'Página inicial', 'bibliografia-pagina-fin': 'Página final', 'bibliografia-no-referencias': 'Número de referencias', 'bibliografia-referentes': 'Referentes', 'bibliografia-pdf': 'PDF disponible', 'bibliografia-tomo': 'Tomo', 'bibliografia-numero': 'Número'});
 const escapeHtml = value => String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 const formatKey = key => escapeHtml(labels[key] || key.replace(/([A-Z])/g, ' $1'));
 
@@ -25,13 +26,25 @@ async function getJSON(url) {
   return response.json();
 }
 
+function linkText(text) {
+  return String(text).split(/(https?:\/\/[^\s<>"']+)/g).map(part => /^https?:\/\//.test(part)
+    ? `<a href="${escapeHtml(part)}" target="_blank" rel="noopener noreferrer">${escapeHtml(part)}</a>` : escapeHtml(part)).join('');
+}
 function renderValue(item) {
-  if (!item || typeof item !== 'object') return escapeHtml(item);
-  // RDF identifiers are not necessarily navigable web pages.
-  if (/^https?:\/\//i.test(item.id) && !item.id.startsWith('http://ahcm/')) {
-    return `<a href="${escapeHtml(item.id)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.label)}</a>`;
+  if (!item || typeof item !== 'object') return linkText(item);
+  if (item.id.startsWith('http://ahcm/persona/') && item.id.split('/').length === 5) {
+    return `<a href="#persona=${encodeURIComponent(item.id.split('/').pop())}">${escapeHtml(item.label)}</a>`;
   }
-  return escapeHtml(item.label);
+  if (item.id.startsWith('http://ahcm/')) {
+    return `<a href="#recurso=${encodeURIComponent(item.id)}">${escapeHtml(item.label)}</a>`;
+  }
+  if (/^https?:\/\//i.test(item.id)) return `<a href="${escapeHtml(item.id)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.label)}</a>`;
+  return linkText(item.label);
+}
+function propertyTable(properties) {
+  return `<table class="metadata"><tbody>${Object.entries(properties)
+    .filter(([key]) => !['type', 'name', 'identifier', 'label', 'hasInstance'].includes(key))
+    .map(([key, items]) => `<tr><th scope="row">${formatKey(key)}</th><td>${items.map(renderValue).join('<br>')}</td></tr>`).join('')}</tbody></table>`;
 }
 
 async function searchPeople(append = false) {
@@ -56,68 +69,49 @@ async function searchPeople(append = false) {
   }
 }
 
-function drawGraph(person, relations) {
-  const container = document.querySelector('#graph');
-  const items = relations.slice(0, 16);
-  if (!items.length) { container.textContent = 'No hay relaciones enlazadas.'; return; }
-  const ns = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(ns, 'svg');
-  svg.setAttribute('viewBox', '0 0 760 560');
-  svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', `Relaciones de ${person.label}. Lista completa debajo.`);
-  const add = (name, attrs, text) => {
-    const node = document.createElementNS(ns, name);
-    Object.entries(attrs).forEach(([k,v]) => node.setAttribute(k,v));
-    if (text) node.textContent = text;
-    svg.appendChild(node);
-    return node;
-  };
-  const positions = items.map((item, i) => {
-    const angle = 2 * Math.PI * i / items.length;
-    return {item, x: 380 + 255 * Math.cos(angle), y: 275 + 210 * Math.sin(angle)};
-  });
-  positions.forEach(({x,y}) => add('line', {x1:380,y1:275,x2:x,y2:y,stroke:'#a9c7c0','stroke-width':2}));
-  positions.forEach(({item,x,y}) => {
-    const node = add('circle', {cx:x,cy:y,r:10,fill:'#c65d3a'});
-    const title = document.createElementNS(ns,'title');
-    title.textContent = `${labels[item.predicate] || item.predicate}: ${item.target.label}`;
-    node.appendChild(title);
-    add('text',{x,y:y+26,'text-anchor':'middle','font-size':12,fill:'#17252d'},
-        item.target.label.length > 26 ? item.target.label.slice(0,23) + '…' : item.target.label);
-  });
-  add('circle',{cx:380,cy:275,r:24,fill:'#246b68'});
-  add('text',{x:380,y:319,'text-anchor':'middle','font-size':14,'font-weight':700,fill:'#17252d'},person.label);
-  container.appendChild(svg);
-}
-
 async function loadPerson(id) {
   const version = ++detailVersion;
   detail.className = 'detail';
   detail.innerHTML = '<p class="muted">Cargando ficha…</p>';
   try {
-    const [person, relations] = await Promise.all([
-      getJSON(`/api/personas/${encodeURIComponent(id)}`),
-      getJSON(`/api/personas/${encodeURIComponent(id)}/relaciones`)
-    ]);
+    const person = await getJSON(`/api/personas/${encodeURIComponent(id)}`);
     if (version !== detailVersion) return;
-    const properties = Object.entries(person.properties).filter(([key]) => !['type','name','identifier','made'].includes(key));
-    const contributions = (person.properties.made || []).filter(item => !person.publications.some(work => work.id === item.id));
-    if (contributions.length) properties.push(['made', contributions]);
-    detail.innerHTML = `<p class="eyebrow">Ficha de entidad</p><h2>${escapeHtml(person.label)}</h2>
-      <div class="property-grid">${properties.map(([key,items]) => `<article class="property"><h3>${formatKey(key)}</h3><p>${items.map(renderValue).join('; ')}</p></article>`).join('')}</div>
-      <section class="publications"><h3>Publicaciones vinculadas (${person.publications.length})</h3>${person.publications.length ? `<ul>${person.publications.map(item => `<li>${escapeHtml(item.label)}</li>`).join('')}</ul>` : '<p class="muted">No hay publicaciones vinculadas.</p>'}</section>
-      <section class="publications"><h3>Relaciones del grafo (${relations.length})</h3><div id="graph"></div>
-      <p class="hint">La vista muestra hasta 16 relaciones. La lista contiene todas las relaciones registradas.</p>
-      ${relations.length ? `<ul>${relations.map(item => `<li><strong>${formatKey(item.predicate)}:</strong> ${renderValue(item.target)}</li>`).join('')}</ul>` : ''}</section>`;
-    drawGraph(person, relations);
+    detail.innerHTML = `<p class="eyebrow">Ficha de autoridad</p><h2>${escapeHtml(person.label)}</h2>
+      ${propertyTable(person.properties)}
+      <section class="publications"><h3>Publicaciones vinculadas (${person.publications.length})</h3>
+      ${person.publications.length ? `<ul>${person.publications.map(item => `<li>${renderValue(item)}</li>`).join('')}</ul>` : '<p class="muted">No hay publicaciones vinculadas.</p>'}</section>
+      <section class="publications"><h3>Subgrafo del actor</h3><p class="hint">Actores, metadatos y publicaciones. Arrastra los nodos o acerca la vista.</p>
+      <iframe title="Subgrafo del actor" src="/api/personas/${encodeURIComponent(id)}/grafo" loading="lazy"></iframe></section>`;
   } catch (_) {
     if (version === detailVersion) detail.innerHTML = '<p>No se pudo cargar la ficha. Selecciona la persona para reintentar.</p>';
   }
 }
+async function loadResource(uri) {
+  const version = ++detailVersion;
+  detail.className = 'detail';
+  detail.innerHTML = '<p>Cargando metadatos…</p>';
+  try {
+    const resource = await getJSON(`/api/recursos?uri=${encodeURIComponent(uri)}`);
+    if (version !== detailVersion) return;
+    detail.innerHTML = `<p class="eyebrow">${uri.startsWith('http://ahcm/publicacion/') ? 'Ficha bibliográfica · BIBFRAME' : 'Ficha de recurso'}</p>
+      <h2>${escapeHtml(resource.label)}</h2>${propertyTable(resource.properties)}
+      ${resource.actors.length ? `<p>Actores vinculados: ${resource.actors.map(renderValue).join('; ')}</p>` : ''}
+      ${resource.instances.map(instance => `<section class="publications"><h3>Edición · ${escapeHtml(instance.label)}</h3>${propertyTable(instance.properties)}</section>`).join('')}
+      ${uri.startsWith('http://ahcm/publicacion/') && !resource.instances.length ? '<p class="hint">Título registrado por el actor, sin coincidencia bibliográfica única en el CSV.</p>' : ''}`;
+  } catch (_) {
+    if (version === detailVersion) detail.innerHTML = '<p>No se pudo cargar el recurso.</p>';
+  }
+}
+function route() {
+  const fragment = new URLSearchParams(location.hash.slice(1));
+  if (fragment.has('persona')) loadPerson(fragment.get('persona'));
+  else if (fragment.has('recurso')) loadResource(fragment.get('recurso'));
+}
+window.addEventListener('hashchange', route);
 
 results.addEventListener('click', event => {
   const button = event.target.closest('[data-id]');
-  if (button) loadPerson(button.dataset.id);
+  if (button) { const hash = '#persona=' + encodeURIComponent(button.dataset.id); if (location.hash === hash) route(); else location.hash = hash; }
 });
 search.addEventListener('input', () => {
   ++searchVersion;
@@ -129,6 +123,7 @@ more.addEventListener('click', () => searchPeople(true));
 document.querySelector('#clear').addEventListener('click', () => {
   clearTimeout(timer);
   ++detailVersion;
+  history.replaceState(null, '', location.pathname);
   search.value = '';
   detail.className = 'detail empty-state';
   detail.innerHTML = '<h2>Selecciona una persona</h2><p>Consulta su información, publicaciones y relaciones.</p>';
@@ -139,3 +134,5 @@ getJSON('/api/stats').then(data => {
   stats.innerHTML = `<span>${data.personas} personas</span><span>${data.publicaciones} publicaciones</span><span>${data.triples} relaciones RDF</span>`;
 }).catch(() => { stats.textContent = 'Estadísticas no disponibles'; });
 searchPeople();
+
+route();

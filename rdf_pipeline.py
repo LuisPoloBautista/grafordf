@@ -11,7 +11,7 @@ from rdflib.namespace import FOAF, SKOS, XSD
 
 ROOT = Path(__file__).parent
 PROSOPOGRAPHIC_CSV = ROOT / "comunidades.csv"
-BIBLIOGRAPHIC_CSV = ROOT / "tesis raquel" / "bibliografica.csv"
+BIBLIOGRAPHIC_CSV = ROOT / "dataset" / "bibliografica.csv"
 OUTPUT = ROOT / "data" / "grafo.ttl"
 
 AHCM = Namespace("http://ahcm/")
@@ -68,6 +68,8 @@ def slug(value: str) -> str:
 def external_value(graph: Graph, value: str, kind: str) -> URIRef | Literal:
     match = re.match(r"^(.+?):\s*(https?://\S+)$", value)
     if not match:
+        if re.fullmatch(r"https?://\S+", value):
+            return URIRef(value.rstrip(".,;"))
         return Literal(value, lang="es")
     label, url = match.groups()
     uri = URIRef(url.rstrip(".,;"))
@@ -159,19 +161,25 @@ def build_graph() -> Graph:
         for column, (predicate, kind) in column_map.items():
             for item in values(row.get(column)):
                 if kind == "lugar":
-                    target = PLACE[slug(item)]
+                    linked = external_value(graph, item, kind)
+                    target = linked if isinstance(linked, URIRef) else PLACE[slug(item)]
                     graph.add((target, RDF.type, AHCMO.Place))
-                    graph.add((target, RDFS.label, Literal(item, lang="es")))
+                    if not isinstance(linked, URIRef):
+                        graph.add((target, RDFS.label, Literal(item, lang="es")))
                     graph.add((person, predicate, target))
                 elif kind == "institucion":
-                    target = INSTITUTION[slug(item)]
+                    linked = external_value(graph, item, kind)
+                    target = linked if isinstance(linked, URIRef) else INSTITUTION[slug(item)]
                     graph.add((target, RDF.type, ORG.Organization))
-                    graph.add((target, RDFS.label, Literal(item, lang="es")))
+                    if not isinstance(linked, URIRef):
+                        graph.add((target, RDFS.label, Literal(item, lang="es")))
                     graph.add((person, predicate, target))
                 elif kind == "rol":
-                    target = ROLE[slug(item)]
+                    linked = external_value(graph, item, kind)
+                    target = linked if isinstance(linked, URIRef) else ROLE[slug(item)]
                     graph.add((target, RDF.type, AHCMO.Role))
-                    graph.add((target, RDFS.label, Literal(item, lang="es")))
+                    if not isinstance(linked, URIRef):
+                        graph.add((target, RDFS.label, Literal(item, lang="es")))
                     graph.add((person, predicate, target))
                 else:
                     add_literal_or_uri(graph, person, predicate, item, kind)
@@ -183,35 +191,8 @@ def build_graph() -> Graph:
                 except ValueError:
                     graph.add((person, predicate, Literal(item, lang="es")))
 
-        for index, title in enumerate(values(row.get("Trabajo")), start=1):
-            work = WORK[f"{person_id}-{index}"]
-            graph.add((work, RDF.type, BIBFRAME.Work))
-            graph.add((work, BIBFRAME.title, Literal(title, lang="es")))
-            graph.add((work, BIBFRAME.creator, person))
-            graph.add((person, FOAF.made, work))
-
-    if BIBLIOGRAPHIC_CSV.exists():
-        bibliographic = read_csv(BIBLIOGRAPHIC_CSV)
-        for index, row in enumerate(bibliographic):
-            title_values = values(row.get("Titulo"))
-            if not title_values:
-                continue
-            work = WORK[f"bibliografica-{index + 1}"]
-            graph.add((work, RDF.type, BIBFRAME.Work))
-            graph.add((work, BIBFRAME.title, Literal(title_values[0], lang="es")))
-            creator = (row.get("Autor") or "").strip()
-            if creator:
-                candidates = people.get(slug(creator), set())
-                if len(candidates) == 1:
-                    person = next(iter(candidates))
-                    graph.add((work, BIBFRAME.creator, person))
-                    graph.add((person, FOAF.made, work))
-                else:
-                    graph.add((work, BIBFRAME.creator, Literal(creator, lang="es")))
-            for source_column, predicate in (("Año de publicación", BIBFRAME.publicationDate), ("Idioma", BIBFRAME.language), ("Tipo de documento", BIBFRAME.genreForm), ("URL", BIBFRAME.electronicLocator), ("DOI", BIBFRAME.identifier)):
-                for item in values(row.get(source_column)):
-                    if item and item != "nan":
-                        graph.add((work, predicate, uri_or_literal(item)))
+    from bibliography import add_bibliography
+    add_bibliography(graph, prosopographic, BIBLIOGRAPHIC_CSV)
 
     return graph
 

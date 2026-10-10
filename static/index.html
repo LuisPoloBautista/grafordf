@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AHCM | Grafo prosopográfico</title>
+  <title>AHCM | Catálogo de autoridades de actores en el campo de la botánica XVIII</title>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
   <header class="topbar">
     <div>
-      <p class="eyebrow">Atlas Historico de la Ciencia Méxicana</p>
-      <h1>Grafo prosopográfico</h1>
+      <p class="eyebrow">Atlas Histórico de la Ciencia Mexicana</p>
+      <h1>Catálogo de autoridades de actores en el campo de la botánica XVIII</h1>
     </div>
     <div id="stats" class="stats" aria-live="polite"></div>
   </header>
@@ -18,12 +18,14 @@
     <section class="search-panel">
       <label for="search">Buscar una persona</label>
       <div class="search-row">
-        <input id="search" type="search" placeholder="Nombre, firma o apellido" autocomplete="off" maxlength="120">
+        <input id="search" type="search" placeholder="Nombre, metadato o publicación" autocomplete="off" maxlength="120">
         <button id="clear" type="button" title="Limpiar búsqueda">Limpiar</button>
       </div>
-      <p class="hint">Explora el cat?logo o busca por nombre, firma o apellido, con o sin acentos.</p>
+      <p class="hint">Busca en el grafo por nombre, metadatos o publicaciones, con o sin acentos.</p>
       <div id="results" class="results" aria-live="polite"></div>
-      <button id="more" type="button" hidden>Mostrar m?s</button>
+      <button id="more" type="button" hidden>Mostrar más</button>
+      <a class="graph-button" href="/grafo" target="_blank" rel="noopener">Ver grafo RDF completo</a>
+      <p class="hint">Fuentes: comunidades.csv y dataset/bibliografica.csv.</p>
       <a class="download" href="/api/grafo.ttl">Descargar grafo RDF</a>
     </section>
     <section id="detail" class="detail empty-state" aria-live="polite">

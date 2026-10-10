@@ -1,93 +1,64 @@
-# Grafo prosopográfico AHCM
+# Catálogo de autoridades de actores en el campo de la botánica XVIII
 
-Aplicación para consultar las personas, publicaciones y relaciones del Archivo Histórico de Ciencias de México. Un único proceso de Python sirve la API, la interfaz y el grafo RDF construido desde los CSV locales.
+Aplicación FastAPI para consultar autoridades, publicaciones y metadatos desde un grafo RDF. La interfaz ofrece fichas en tablas, enlaces navegables, bibliografía BIBFRAME y grafos dinámicos PyVis.
 
-No requiere Fuseki, Java, Node.js, bases de datos, claves de API, fuentes remotas ni servicios externos durante su ejecución. La interfaz usa HTML, CSS y JavaScript nativos del navegador. Las dependencias Python se instalan una sola vez; después se puede trabajar localmente sin internet. Los enlaces de las fuentes son opcionales y solo se abren al pulsarlos.
-
-## Ejecutar localmente
+## Ejecutar
 
 Requiere Python 3.12.
 
-```sh
-python -m venv .venv
-```
-
-Activar el entorno en Windows PowerShell:
-
 ```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-En Linux/macOS:
-
-```sh
-source .venv/bin/activate
-```
-
-Instalar y arrancar:
-
-```sh
 python -m pip install -r requirements.txt
 python app.py
 ```
 
-Abrir http://localhost:8000. Para desarrollo con recarga automática: `python -m uvicorn app:app --reload`.
+Abrir http://localhost:8000. Reiniciar el servidor después de cambiar los CSV.
 
-## Funciones
+## Fuentes identificadas
 
-- Catálogo paginado y búsqueda por nombre, firma o abreviatura, sin distinguir mayúsculas ni acentos.
-- Fichas con atributos, publicaciones y enlaces a las fuentes.
-- Vista SVG de hasta 16 relaciones por persona, acompañada de la lista completa.
-- Descarga del grafo completo en Turtle desde la interfaz.
-- Errores de conexión visibles y protección contra respuestas de búsquedas anteriores.
+- `comunidades.csv`: 110 actores; es el CSV que alimentaba la búsqueda original y se mantiene como fuente de autoridades.
+- `dataset/bibliografica.csv`: bibliografía. Este es el nombre real disponible; no existe `dataset/bibliográfico.csv`. Se corrigió la referencia anterior a `tesis raquel/bibliografica.csv`.
+- `dataset/poso.csv` y `poso-csv.csv` no alimentan esta aplicación.
 
-## Datos y criterios
+Los CSV se convierten al arrancar a un único grafo RDF en memoria. La búsqueda y las fichas se obtienen del grafo, no de consultas directas a las tablas CSV. `python rdf_pipeline.py` exporta también `data/grafo.ttl`; la descarga web corresponde al grafo cargado por el servidor.
 
-`comunidades.csv` contiene los datos prosopográficos; `tesis raquel/bibliografica.csv` contiene los bibliográficos. Ambos deben incluirse en GitHub. El lector acepta UTF-8 y los CSV originales con codificación Windows-1252.
+## Bibliografía y vinculación
 
-El servidor reconstruye el grafo en memoria al arrancar: después de editar un CSV, reiniciar el servidor o desplegar de nuevo. No necesita disco persistente ni depende de `data/grafo.ttl`. Para generar un archivo local de manera opcional: `python rdf_pipeline.py`.
+Se reconcilia `Trabajo` de los actores con `Titulo` del catálogo bibliográfico, normalizando acentos, espacios y puntuación. Un título abreviado de cinco palabras o más se acepta si es prefijo de un único título bibliográfico. No se aplican coincidencias difusas ni atribuciones por parecido del autor. Los títulos compuestos o ambiguos que no coinciden se conservan como obras sin edición bibliográfica y se identifican así en la ficha.
 
-Los autores bibliográficos se enlazan automáticamente cuando su nombre coincide, sin acentos ni puntuación, con un único nombre o firma registrado. Los demás se conservan como texto; no se asignan por semejanza para evitar atribuciones incorrectas. Los registros bibliográficos y las obras de la columna Trabajo se conservan como registros separados, sin deduplicación automática. Las cifras de publicaciones cuentan estos registros, no necesariamente obras únicas. La aplicación muestra las comunidades declaradas en los datos; no calcula agrupaciones estadísticas.
+Los títulos normalizados iguales comparten una `bf:Work`; cada fila bibliográfica conserva su propia `bf:Instance`, vinculada mediante `bf:hasInstance` y `bf:instanceOf`. Esto agrupa por título, no constituye una revisión catalográfica de homónimos. La procedencia conserva archivo y número de fila. Las fechas, identificadores y enlaces permanecen asociados a cada edición.
 
-## Desplegar en Render
+Modelación: `bf:Title` / `bf:mainTitle`, `bf:Contribution` / `bf:agent`, `bf:Publication` / `bf:date`, `bf:Language`, `bf:GenreForm`, `bf:Topic`, `bf:Extent`, `bf:Note`, `bf:Isbn`, `bf:Doi` y `bf:electronicLocator`. Los campos sin equivalencia directa (páginas inicial/final, tomo, referentes y otros) se preservan con propiedades del espacio local `ahcmo`, sin inventar términos BIBFRAME.
 
-El repositorio contiene `render.yaml`. En Render, crea un **Blueprint**, conecta el repositorio y revisa y aplica la configuración del servicio.
+La vinculación al actor queda expresada por `foaf:made` y una contribución BIBFRAME, con el criterio de coincidencia registrado en RDF. Los nombres de autor originales también se conservan.
 
-Alternativamente, crea un **Web Service** con estos valores:
+## Búsqueda en el grafo
 
-| Campo | Valor |
-| --- | --- |
-| Runtime | Python |
-| Build Command | `pip install -r requirements.txt` |
-| Start Command | `uvicorn app:app --host 0.0.0.0 --port $PORT` |
-| Health Check Path | `/health` |
-| Variable `PYTHON_VERSION` | `3.12.10` |
+Al iniciar se recorren en anchura (BFS) las descripciones RDF salientes de cada actor, incluyendo sus obras, ediciones y metadatos; el recorrido se detiene ante otros actores. Se construye un índice invertido de n-gramas de 1–3 caracteres. Cada consulta intersecta las listas del índice, verifica sus términos y prioriza coincidencias en nombres. Admite palabras en distinto orden, fragmentos y consultas sin acentos. El coste de construir el índice se paga al arrancar, no en cada búsqueda. No usa PageRank, que clasifica centralidad y no sustituye la recuperación textual.
 
-Selecciona en Render el plan que quieras utilizar. No hace falta añadir una base de datos ni un disco persistente. El despliegue real requiere conectar tu cuenta y repositorio; no se ha realizado desde esta carpeta.
+## Visualizaciones
 
-Referencias oficiales: [FastAPI en Render](https://render.com/docs/deploy-fastapi), [Blueprints](https://render.com/docs/blueprint-spec) y [comprobaciones de salud](https://render.com/docs/health-checks).
+PyVis representa cada triple como una arista dirigida; incluye también los valores literales. La ficha muestra el subgrafo del actor, sin límite de 16 relaciones ni lista redundante. El botón «Ver grafo RDF completo» abre todos los triples. Las vistas permiten arrastrar, acercar, centrar, localizar nodos y activar o pausar la física. El grafo completo inicia con la física pausada para reducir carga; visualizar decenas de miles de triples puede ser pesado en equipos modestos.
+
+Los recursos JavaScript de PyVis se incluyen dentro del HTML. No se necesitan servicios remotos para usar la aplicación después de instalar las dependencias. Las páginas del grafo se generan a demanda y se guardan en memoria hasta reiniciar.
 
 ## API
 
-| Ruta | Resultado |
-| --- | --- |
-| `/health` | Estado del servidor |
-| `/api/stats` | Recuento de personas, publicaciones y triples |
-| `/api/personas?q=jose&limit=20&offset=0` | Búsqueda paginada; límite máximo 100 |
-| `/api/personas/jose-de-acosta` | Ficha individual |
-| `/api/personas/jose-de-acosta/relaciones` | Relaciones de la persona |
-| `/api/grafo.ttl` | Descarga RDF |
-| `/openapi.json` | Esquema de la API |
-
-Las páginas Swagger y ReDoc están desactivadas porque por defecto descargan recursos externos.
+- `/api/personas?q=historia&limit=20&offset=0`: búsqueda paginada de actores.
+- `/api/personas/{id}`: ficha con metadatos y publicaciones.
+- `/api/recursos?uri=...`: descripción de cualquier recurso RDF local y ediciones de una obra.
+- `/api/personas/{id}/grafo`: subgrafo PyVis.
+- `/grafo`: grafo PyVis completo.
+- `/api/grafo.ttl`: descarga RDF Turtle.
+- `/api/stats`: cifras y archivos fuente.
+- `/health`: comprobación de servicio.
 
 ## Verificar
 
-```sh
+```powershell
 python -m pip install -r requirements-dev.txt
 python -m unittest discover -s tests -v
 ```
 
-Las pruebas cubren el arranque sin conexiones salientes, archivos estáticos, búsqueda, paginación, las 110 fichas, respuestas de error, valores ausentes, caracteres y exportación RDF. No requieren servidores adicionales.
+`render.yaml` conserva la configuración de despliegue: instalar `requirements.txt` y servir `uvicorn app:app --host 0.0.0.0 --port $PORT`. Incluir los dos CSV fuente en el repositorio. No requiere base de datos ni disco persistente.
 
-Los scripts, HTML y RDF antiguos se conservan localmente como material de investigación y están excluidos del repositorio preparado; no forman parte de la aplicación ni se ejecutan al arrancar.
+Referencias: [modelo BIBFRAME 2](https://www.loc.gov/bibframe/docs/bibframe2-model.html), [mapeo oficial a BIBFRAME](https://www.loc.gov/standards/mods/modsrdf/mods3-7-bibframe2-0-mapping.html), [PyVis](https://pyvis.readthedocs.io/en/latest/documentation.html).

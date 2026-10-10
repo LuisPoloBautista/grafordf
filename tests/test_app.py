@@ -3,7 +3,7 @@ from unittest.mock import patch
 from pathlib import Path
 
 from fastapi.testclient import TestClient
-from rdflib import Graph, Literal, RDF
+from rdflib import Graph, Literal, RDF, URIRef
 from rdflib.namespace import FOAF
 
 from app import app
@@ -91,6 +91,41 @@ class ApplicationTests(unittest.TestCase):
             response = self.client.get('/api/personas/' + entry['slug'])
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()['id'], entry['id'])
+
+    def test_publication_title_reconciliation_and_bibframe(self):
+        person = self.client.get('/api/personas/jose-de-acosta').json()
+        work = person['publications'][0]
+        response = self.client.get('/api/recursos', params={'uri': work['id']})
+        self.assertEqual(response.status_code, 200)
+        record = response.json()
+        self.assertTrue(record['instances'])
+        self.assertIn('jose-de-acosta', record['actors'][0]['id'])
+        instance = record['instances'][0]
+        self.assertTrue(instance['properties']['electronicLocator'])
+        graph = app.state.graph
+        for title in graph.objects(URIRef(work['id']), BIBFRAME.title):
+            self.assertIn((title, RDF.type, BIBFRAME.Title), graph)
+            self.assertTrue(list(graph.objects(title, BIBFRAME.mainTitle)))
+        self.assertIn((URIRef(instance['id']), BIBFRAME.instanceOf, URIRef(work['id'])), graph)
+        self.assertEqual(self.client.get('/api/recursos', params={'uri': 'http://ahcm/missing'}).status_code, 404)
+
+    def test_search_traverses_publication_metadata(self):
+        results = self.client.get('/api/personas', params={'q': 'historia moral indias'}).json()
+        self.assertIn('jose-de-acosta', [p['slug'] for p in results])
+        results = self.client.get('/api/personas', params={'q': '1792'}).json()
+        self.assertIn('jose-de-acosta', [p['slug'] for p in results])
+
+    def test_pyvis_renders_all_triples_and_no_remote_scripts(self):
+        import re
+        for route in ('/grafo', '/api/personas/jose-de-acosta/grafo'):
+            response = self.client.get(route)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('vis.Network', response.text)
+            self.assertNotRegex(response.text, r'<script[^>]+src="https?://')
+            self.assertNotRegex(response.text, r'<link[^>]+href="https?://')
+        page = self.client.get('/grafo').text
+        self.assertIn(f'{len(app.state.graph)} triples', page)
+        self.assertEqual(self.client.get('/api/personas/no-existe/grafo').status_code, 404)
 
 
 if __name__ == '__main__':
