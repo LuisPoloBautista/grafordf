@@ -3,6 +3,7 @@ const results = document.querySelector('#results');
 const detail = document.querySelector('#detail');
 const stats = document.querySelector('#stats');
 const more = document.querySelector('#more');
+const typeFilter = document.querySelector('#type-filter');
 let timer, searchVersion = 0, detailVersion = 0, offset = 0;
 const pageSize = 20;
 const labels = {
@@ -32,6 +33,10 @@ function linkText(text) {
 }
 function renderValue(item) {
   if (!item || typeof item !== 'object') return linkText(item);
+  if (item.facet_id) {
+    const external = item.external ? ` <a href="${escapeHtml(item.external)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir fuente externa">↗</a>` : '';
+    return `<a href="#metadato=${encodeURIComponent(item.facet_id)}">${escapeHtml(item.label)}</a>${external}`;
+  }
   if (item.id.startsWith('http://ahcm/persona/') && item.id.split('/').length === 5) {
     return `<a href="#persona=${encodeURIComponent(item.id.split('/').pop())}">${escapeHtml(item.label)}</a>`;
   }
@@ -43,7 +48,7 @@ function renderValue(item) {
 }
 function propertyTable(properties) {
   return `<table class="metadata"><tbody>${Object.entries(properties)
-    .filter(([key]) => !['type', 'name', 'identifier', 'label', 'hasInstance'].includes(key))
+    .filter(([key]) => !['type', 'identifier', 'label', 'hasInstance'].includes(key))
     .map(([key, items]) => `<tr><th scope="row">${formatKey(key)}</th><td>${items.map(renderValue).join('<br>')}</td></tr>`).join('')}</tbody></table>`;
 }
 
@@ -53,12 +58,12 @@ async function searchPeople(append = false) {
   more.hidden = true;
   try {
     // Ask for one extra item to determine whether another page exists.
-    const data = await getJSON(`/api/personas?q=${encodeURIComponent(search.value.trim())}&limit=${pageSize + 1}&offset=${offset}`);
+    const data = await getJSON(`/api/buscar?q=${encodeURIComponent(search.value.trim())}&kind=${typeFilter.value}&limit=${pageSize + 1}&offset=${offset}`);
     if (version !== searchVersion) return;
     if (!append) results.innerHTML = '';
     const page = data.slice(0, pageSize);
-    results.insertAdjacentHTML('beforeend', page.map(person => `<button class="result" data-id="${escapeHtml(person.slug)}"><strong>${escapeHtml(person.label)}</strong><small>Ver ficha</small></button>`).join(''));
-    if (!page.length && !append) results.innerHTML = '<p class="muted">No se encontraron personas.</p>';
+    results.insertAdjacentHTML('beforeend', page.map(item => `<button class="result" data-kind="${escapeHtml(item.kind)}" data-id="${escapeHtml(item.id)}"><strong>${escapeHtml(item.label)}</strong><small>${item.kind === 'actor' ? 'Actor' : 'Publicación'}</small></button>`).join(''));
+    if (!page.length && !append) results.innerHTML = '<p class="muted">No se encontraron registros.</p>';
     offset += page.length;
     more.hidden = data.length <= pageSize;
   } catch (_) {
@@ -102,16 +107,37 @@ async function loadResource(uri) {
     if (version === detailVersion) detail.innerHTML = '<p>No se pudo cargar el recurso.</p>';
   }
 }
+async function loadMetadata(id, append = false) {
+  const version = append ? detailVersion : ++detailVersion;
+  const current = append ? Number(detail.dataset.offset || 0) : 0;
+  detail.className = 'detail';
+  if (!append) detail.innerHTML = '<p>Cargando registros relacionados…</p>';
+  try {
+    const data = await getJSON(`/api/metadatos?id=${encodeURIComponent(id)}&offset=${current}&limit=30`);
+    if (version !== detailVersion) return;
+    if (!append) detail.innerHTML = `<p class="eyebrow">Metadato compartido</p><h2>${escapeHtml(data.label)}</h2>
+      <p>${data.total} registros relacionados</p><ul id="related-records"></ul><button id="more-related" hidden>Mostrar más registros</button>`;
+    detail.querySelector('#related-records').insertAdjacentHTML('beforeend', data.records.map(item => `<li>${renderValue(item)} <span class="muted">${item.kind === 'actor' ? 'Actor' : 'Publicación'}</span></li>`).join(''));
+    detail.dataset.offset = current + data.records.length;
+    const button = detail.querySelector('#more-related');
+    button.hidden = current + data.records.length >= data.total;
+    button.onclick = () => { button.disabled = true; loadMetadata(id, true).finally(() => { button.disabled = false; }); };
+  } catch (_) {
+    if (version === detailVersion) detail.innerHTML = '<p>No se pudieron cargar los registros relacionados.</p>';
+  }
+}
 function route() {
   const fragment = new URLSearchParams(location.hash.slice(1));
   if (fragment.has('persona')) loadPerson(fragment.get('persona'));
   else if (fragment.has('recurso')) loadResource(fragment.get('recurso'));
+  else if (fragment.has('metadato')) loadMetadata(fragment.get('metadato'));
+  else { ++detailVersion; detail.className = 'detail empty-state'; detail.innerHTML = '<h2>Selecciona un registro</h2>'; }
 }
 window.addEventListener('hashchange', route);
 
 results.addEventListener('click', event => {
   const button = event.target.closest('[data-id]');
-  if (button) { const hash = '#persona=' + encodeURIComponent(button.dataset.id); if (location.hash === hash) route(); else location.hash = hash; }
+  if (button) { const hash = button.dataset.kind === 'actor' ? '#persona=' + encodeURIComponent(button.dataset.id.split('/').pop()) : '#recurso=' + encodeURIComponent(button.dataset.id); if (location.hash === hash) route(); else location.hash = hash; }
 });
 search.addEventListener('input', () => {
   ++searchVersion;
@@ -120,11 +146,13 @@ search.addEventListener('input', () => {
   timer = setTimeout(() => searchPeople(), 250);
 });
 more.addEventListener('click', () => searchPeople(true));
+typeFilter.addEventListener('change', () => { clearTimeout(timer); searchPeople(); });
 document.querySelector('#clear').addEventListener('click', () => {
   clearTimeout(timer);
   ++detailVersion;
   history.replaceState(null, '', location.pathname);
   search.value = '';
+  typeFilter.value = 'todos';
   detail.className = 'detail empty-state';
   detail.innerHTML = '<h2>Selecciona una persona</h2><p>Consulta su información, publicaciones y relaciones.</p>';
   search.focus();
@@ -133,6 +161,4 @@ document.querySelector('#clear').addEventListener('click', () => {
 getJSON('/api/stats').then(data => {
   stats.innerHTML = `<span>${data.personas} personas</span><span>${data.publicaciones} publicaciones</span><span>${data.triples} relaciones RDF</span>`;
 }).catch(() => { stats.textContent = 'Estadísticas no disponibles'; });
-searchPeople();
-
-route();
+getJSON('/api/vocabulario').then(data => Object.assign(labels, data.labels)).catch(() => {}).finally(() => { searchPeople(); route(); });

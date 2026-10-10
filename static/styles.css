@@ -53,3 +53,6 @@ a:hover { color: var(--teal); }
 .metadata td { line-height: 1.65; }
 iframe { width: 100%; height: 620px; border: 1px solid var(--line); background: white; }
 .graph-button { display: block; margin-top: 1.5rem; padding: .8rem; background: var(--teal); color: white; text-align: center; }
+
+#type-filter { width: 100%; padding: .6rem; border: 1px solid var(--line); background: white; font: inherit; }
+#related-records li { margin-bottom: .8rem; line-height: 1.6; }

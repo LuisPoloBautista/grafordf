@@ -1,6 +1,7 @@
 # Catálogo de autoridades de actores en el campo de la botánica XVIII
 
-Aplicación FastAPI para consultar autoridades, publicaciones y metadatos desde un grafo RDF. La interfaz ofrece fichas en tablas, enlaces navegables, bibliografía BIBFRAME y grafos dinámicos PyVis.
+Aplicación FastAPI para explorar actores y publicaciones sobre un grafo RDF,
+con fichas bibliográficas BIBFRAME y visualizaciones dinámicas PyVis.
 
 ## Ejecutar
 
@@ -11,46 +12,82 @@ python -m pip install -r requirements.txt
 python app.py
 ```
 
-Abrir http://localhost:8000. Reiniciar el servidor después de cambiar los CSV.
+Abrir http://localhost:8000. Después de modificar los CSV o el mapeo, reiniciar
+el servidor. No requiere bases de datos ni servicios externos durante el uso.
 
-## Fuentes identificadas
+## Datos y mapeo
 
-- `comunidades.csv`: 110 actores; es el CSV que alimentaba la búsqueda original y se mantiene como fuente de autoridades.
-- `dataset/bibliografica.csv`: bibliografía. Este es el nombre real disponible; no existe `dataset/bibliográfico.csv`. Se corrigió la referencia anterior a `tesis raquel/bibliografica.csv`.
-- `dataset/poso.csv` y `poso-csv.csv` no alimentan esta aplicación.
+- `comunidades.csv`: autoridades; 110 actores.
+- `dataset/bibliografica.csv`: registros bibliográficos; cada fila conserva una edición.
+- `ontology.py`: correspondencia entre columnas y vocabularios, y etiquetas de interfaz.
+- `actors.py`: conversión de actores, autoridades compartidas y eventos biográficos.
+- `bibliography.py`: BIBFRAME y reconciliación de títulos.
+- `catalog_graph.py`: proyección semántica e índice de metadatos compartidos.
+- `graph_tools.py`: búsqueda indexada y representación PyVis.
 
-Los CSV se convierten al arrancar a un único grafo RDF en memoria. La búsqueda y las fichas se obtienen del grafo, no de consultas directas a las tablas CSV. `python rdf_pipeline.py` exporta también `data/grafo.ttl`; la descarga web corresponde al grafo cargado por el servidor.
+La explicación de cada correspondencia, las excepciones y las referencias
+oficiales están en [el perfil RDF](docs/mapeo-rdf.md).
 
-## Bibliografía y vinculación
+Los CSV se convierten a RDF al arrancar. La búsqueda y las fichas se obtienen de
+ese grafo. `python rdf_pipeline.py` genera `data/grafo.ttl`; `/api/grafo.ttl`
+descarga el RDF completo cargado por el servidor.
 
-Se reconcilia `Trabajo` de los actores con `Titulo` del catálogo bibliográfico, normalizando acentos, espacios y puntuación. Un título abreviado de cinco palabras o más se acepta si es prefijo de un único título bibliográfico. No se aplican coincidencias difusas ni atribuciones por parecido del autor. Los títulos compuestos o ambiguos que no coinciden se conservan como obras sin edición bibliográfica y se identifican así en la ficha.
+`rdfs:label` da nombre a los nodos, sin dibujarse como relación. Se eliminó
+`sourceType`. Los nodos estructurales de BIBFRAME se conservan en RDF y se
+simplifican en la vista. Las notas usan `dcterms:description` para actores y
+`bf:note` para bibliografía. `bf:agent` identifica correctamente al agente de
+una contribución y se presenta como autoría.
 
-Los títulos normalizados iguales comparten una `bf:Work`; cada fila bibliográfica conserva su propia `bf:Instance`, vinculada mediante `bf:hasInstance` y `bf:instanceOf`. Esto agrupa por título, no constituye una revisión catalográfica de homónimos. La procedencia conserva archivo y número de fila. Las fechas, identificadores y enlaces permanecen asociados a cada edición.
+## Consultar
 
-Modelación: `bf:Title` / `bf:mainTitle`, `bf:Contribution` / `bf:agent`, `bf:Publication` / `bf:date`, `bf:Language`, `bf:GenreForm`, `bf:Topic`, `bf:Extent`, `bf:Note`, `bf:Isbn`, `bf:Doi` y `bf:electronicLocator`. Los campos sin equivalencia directa (páginas inicial/final, tomo, referentes y otros) se preservan con propiedades del espacio local `ahcmo`, sin inventar términos BIBFRAME.
+La búsqueda devuelve fichas de actores y publicaciones, con filtro de tipo.
+Una consulta por título devuelve la publicación, sin convertir al autor en su
+resultado sustituto. El índice de n-gramas se construye sobre los nombres,
+títulos y metadatos propios de cada registro. Soporta acentos y palabras en
+cualquier orden. Los resultados se ordenan por coincidencia en nombre o título.
 
-La vinculación al actor queda expresada por `foaf:made` y una contribución BIBFRAME, con el criterio de coincidencia registrado en RDF. Los nombres de autor originales también se conservan.
+Pulsar un metadato recupera los registros asociados, con paginación. Si existe
+una fuente externa se ofrece un enlace ↗ separado. Las URI locales representan
+instituciones, lugares o conceptos sin identificador externo documentado.
 
-## Búsqueda en el grafo
+La reconciliación bibliográfica reconoce listas de títulos respetando comas
+internas, coincidencias normalizadas, abreviaciones únicas y variantes
+ortográficas de alta confianza. Se conserva en RDF el título original, el
+criterio y la puntuación. Las coincidencias ambiguas no se asignan. La agrupación
+por título no sustituye una revisión catalográfica de obras homónimas.
 
-Al iniciar se recorren en anchura (BFS) las descripciones RDF salientes de cada actor, incluyendo sus obras, ediciones y metadatos; el recorrido se detiene ante otros actores. Se construye un índice invertido de n-gramas de 1–3 caracteres. Cada consulta intersecta las listas del índice, verifica sus términos y prioriza coincidencias en nombres. Admite palabras en distinto orden, fragmentos y consultas sin acentos. El coste de construir el índice se paga al arrancar, no en cada búsqueda. No usa PageRank, que clasifica centralidad y no sustituye la recuperación textual.
+## Grafo
 
-## Visualizaciones
+El botón del grafo abre la proyección de actores, publicaciones y metadatos.
+Los registros que comparten adscripción, formación, publicaciones u otros datos
+se conectan al mismo nodo. Compartir un dato no implica colaboración histórica.
 
-PyVis representa cada triple como una arista dirigida; incluye también los valores literales. La ficha muestra el subgrafo del actor, sin límite de 16 relaciones ni lista redundante. El botón «Ver grafo RDF completo» abre todos los triples. Las vistas permiten arrastrar, acercar, centrar, localizar nodos y activar o pausar la física. El grafo completo inicia con la física pausada para reducir carga; visualizar decenas de miles de triples puede ser pesado en equipos modestos.
+- Actores verdes, publicaciones naranjas, metadatos violetas.
+- Tamaño según vecinos distintos; grosor según relaciones de origen agrupadas.
+- Zoom, arrastre, búsqueda de nodo, filtro de entorno y pausa de movimiento.
+- Doble clic para abrir fichas o los registros que comparten un metadato.
 
-Los recursos JavaScript de PyVis se incluyen dentro del HTML. No se necesitan servicios remotos para usar la aplicación después de instalar las dependencias. Las páginas del grafo se generan a demanda y se guardan en memoria hasta reiniciar.
+La vista no es un dibujo de cada triple: omite etiquetas, clases y procedencia,
+y acorta los recorridos estructurales. La descarga mantiene el RDF completo.
+El grafo completo inicia con la física pausada por su tamaño. Los subgrafos
+incluyen publicaciones del actor y actores conectados a sus metadatos compartidos.
+Los recursos de PyVis se sirven dentro del HTML, sin CDN.
 
 ## API
 
-- `/api/personas?q=historia&limit=20&offset=0`: búsqueda paginada de actores.
-- `/api/personas/{id}`: ficha con metadatos y publicaciones.
-- `/api/recursos?uri=...`: descripción de cualquier recurso RDF local y ediciones de una obra.
-- `/api/personas/{id}/grafo`: subgrafo PyVis.
-- `/grafo`: grafo PyVis completo.
-- `/api/grafo.ttl`: descarga RDF Turtle.
-- `/api/stats`: cifras y archivos fuente.
-- `/health`: comprobación de servicio.
+| Ruta | Uso |
+| --- | --- |
+| `/api/buscar?q=historia&kind=todos&limit=20&offset=0` | Actores y publicaciones; tipos `todos`, `actor`, `publicacion` |
+| `/api/personas?q=jose` | Compatibilidad: solo actores |
+| `/api/personas/{id}` | Ficha de actor |
+| `/api/recursos?uri=...` | Ficha bibliográfica o descripción RDF |
+| `/api/metadatos?id=...&limit=30&offset=0` | Registros que comparten un dato |
+| `/api/vocabulario` | Mapeo de autoridades y etiquetas de presentación |
+| `/api/personas/{id}/grafo` | Subgrafo PyVis |
+| `/grafo` | Proyección completa PyVis |
+| `/api/grafo.ttl` | RDF completo |
+| `/api/stats` | Recuentos |
+| `/health` | Salud del servidor |
 
 ## Verificar
 
@@ -59,6 +96,13 @@ python -m pip install -r requirements-dev.txt
 python -m unittest discover -s tests -v
 ```
 
-`render.yaml` conserva la configuración de despliegue: instalar `requirements.txt` y servir `uvicorn app:app --host 0.0.0.0 --port $PORT`. Incluir los dos CSV fuente en el repositorio. No requiere base de datos ni disco persistente.
+Prueba opcional de navegador con Playwright y Edge: iniciar el servidor en el
+puerto 8011 y ejecutar `python tests/browser_check.py`. La variable
+`CATALOG_TEST_URL` permite indicar otro puerto.
 
-Referencias: [modelo BIBFRAME 2](https://www.loc.gov/bibframe/docs/bibframe2-model.html), [mapeo oficial a BIBFRAME](https://www.loc.gov/standards/mods/modsrdf/mods3-7-bibframe2-0-mapping.html), [PyVis](https://pyvis.readthedocs.io/en/latest/documentation.html).
+## Desplegar en Render
+
+`render.yaml` instala `requirements.txt` y ejecuta
+`uvicorn app:app --host 0.0.0.0 --port $PORT`. Incluir los dos CSV fuente.
+No requiere disco persistente. Después de actualizar el código se debe
+reiniciar o desplegar nuevamente el servicio.

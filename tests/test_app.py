@@ -8,6 +8,9 @@ from rdflib.namespace import FOAF
 
 from app import app
 from rdf_pipeline import BIBFRAME, PERSON, BIO, values
+from ontology import AHCMO, SCHEMA, ORG, ACTOR_FIELDS
+from catalog_graph import CatalogGraph
+from bibliography import TitleMatcher
 
 
 class ApplicationTests(unittest.TestCase):
@@ -56,7 +59,7 @@ class ApplicationTests(unittest.TestCase):
         person = self.client.get('/api/personas/jose-de-acosta').json()
         self.assertIn('José', person['label'])
         self.assertTrue(person['publications'])
-        self.assertIn('1540', person['properties']['birth'])
+        self.assertEqual(person['properties']['birthYear'][0]['label'], '1540')
         relations = self.client.get('/api/personas/jose-de-acosta/relaciones').json()
         self.assertTrue(relations)
         self.assertNotIn('type', [r['predicate'] for r in relations])
@@ -94,7 +97,7 @@ class ApplicationTests(unittest.TestCase):
 
     def test_publication_title_reconciliation_and_bibframe(self):
         person = self.client.get('/api/personas/jose-de-acosta').json()
-        work = person['publications'][0]
+        work = next(work for work in person['publications'] if work['label'].startswith('Historia natural'))
         response = self.client.get('/api/recursos', params={'uri': work['id']})
         self.assertEqual(response.status_code, 200)
         record = response.json()
@@ -109,13 +112,16 @@ class ApplicationTests(unittest.TestCase):
         self.assertIn((URIRef(instance['id']), BIBFRAME.instanceOf, URIRef(work['id'])), graph)
         self.assertEqual(self.client.get('/api/recursos', params={'uri': 'http://ahcm/missing'}).status_code, 404)
 
-    def test_search_traverses_publication_metadata(self):
-        results = self.client.get('/api/personas', params={'q': 'historia moral indias'}).json()
-        self.assertIn('jose-de-acosta', [p['slug'] for p in results])
-        results = self.client.get('/api/personas', params={'q': '1792'}).json()
-        self.assertIn('jose-de-acosta', [p['slug'] for p in results])
+    def test_search_returns_publications_not_their_authors(self):
+        results = self.client.get('/api/buscar', params={'q': 'historia moral indias'}).json()
+        self.assertTrue(results)
+        self.assertTrue(all(p['kind'] == 'publicacion' for p in results))
+        records = self.client.get('/api/buscar', params={'q': '1792', 'kind': 'publicacion'}).json()
+        self.assertTrue(records)
+        self.assertTrue(all(p['kind'] == 'publicacion' for p in records))
+        self.assertEqual(self.client.get('/api/buscar?kind=invalid').status_code, 422)
 
-    def test_pyvis_renders_all_triples_and_no_remote_scripts(self):
+    def test_pyvis_renders_semantic_projection_and_no_remote_scripts(self):
         import re
         for route in ('/grafo', '/api/personas/jose-de-acosta/grafo'):
             response = self.client.get(route)
@@ -124,8 +130,84 @@ class ApplicationTests(unittest.TestCase):
             self.assertNotRegex(response.text, r'<script[^>]+src="https?://')
             self.assertNotRegex(response.text, r'<link[^>]+href="https?://')
         page = self.client.get('/grafo').text
-        self.assertIn(f'{len(app.state.graph)} triples', page)
+        nodes, edges = app.state.projection.visual_data()
+        self.assertIn(f'{len(edges)} relaciones visibles', page)
+        self.assertLess(len(edges), len(app.state.graph))
         self.assertEqual(self.client.get('/api/personas/no-existe/grafo').status_code, 404)
+
+    def test_ontology_mapping_and_labels_are_not_relations(self):
+        graph = app.state.graph
+        self.assertFalse(list(graph.triples((None, AHCMO.sourceType, None))))
+        self.assertFalse(list(graph.triples((None, BIO.NameChange, None))))
+        self.assertEqual(ACTOR_FIELDS['Formación'].predicate, SCHEMA.alumniOf)
+        self.assertEqual(ACTOR_FIELDS['Adscripción'].predicate, ORG.memberOf)
+        for event in graph.objects(PERSON['jose-de-acosta'], BIO.birth):
+            self.assertIn((event, RDF.type, BIO.Birth), graph)
+            self.assertEqual(str(graph.value(event, BIO.date)), '1540')
+        nodes, edges = app.state.projection.visual_data()
+        for edge in edges:
+            self.assertTrue(edge['weight'] >= 1)
+            self.assertFalse(set(edge['predicates']) & {'label', 'sourceType', 'type', 'agent', 'comment'})
+        self.assertEqual(len({n['id'] for n in nodes}), len(nodes))
+        self.assertEqual({n['kind'] for n in nodes}, {'actor', 'publicacion', 'metadato'})
+        self.assertGreater(max(n['degree'] for n in nodes), min(n['degree'] for n in nodes))
+        self.assertNotIn('Fuentes: comunidades.csv', self.client.get('/').text)
+
+    def test_metadata_recovers_shared_records_and_paginates(self):
+        projection = app.state.projection
+        metadata = next(identity for identity, matches in projection.related.items()
+                        if (URIRef(identity), RDF.type, ORG.Organization) in app.state.graph and len(matches) >= 2)
+        result = self.client.get('/api/metadatos', params={'id': metadata, 'limit': 1}).json()
+        self.assertGreaterEqual(result['total'], 2)
+        second = self.client.get('/api/metadatos', params={'id': metadata, 'limit': 1, 'offset': 1}).json()
+        self.assertNotEqual(result['records'], second['records'])
+        self.assertTrue(all(r['kind'] in ('actor', 'publicacion') for r in result['records']))
+        self.assertEqual(self.client.get('/api/metadatos?id=missing').status_code, 404)
+
+    def test_local_formation_resource_is_shared_without_an_external_uri(self):
+        from actors import add_actors
+        graph = Graph()
+        add_actors(graph, [{'Autor normalizado': name, 'Formación': 'Colegio de prueba'}
+                           for name in ('Actor uno', 'Actor dos')])
+        projection = CatalogGraph(graph)
+        uri = 'http://ahcm/institucion/colegio-de-prueba'
+        with patch.object(app.state, 'projection', projection):
+            response = self.client.get('/api/metadatos', params={'id': uri}).json()
+        self.assertEqual(response['total'], 2)
+        nodes, edges = projection.visual_data()
+        self.assertEqual(sum(n['id'] == uri for n in nodes), 1)
+        self.assertEqual(sum(e['to'] == uri for e in edges), 2)
+
+    def test_title_matching_composites_variants_and_ambiguity(self):
+        matcher = TitleMatcher({'plantas de mexico animales y minerales': {'a'},
+                                'flora pedemontana': {'b'},
+                                'catalogo de plantas del jardin botanico de madrid': {'c'}})
+        self.assertEqual(matcher.split('Plantas de México, animales y minerales, Flora pedemontana'),
+                         ['Plantas de México, animales y minerales', 'Flora pedemontana'])
+        self.assertEqual(matcher.match('Catálogo de plantas del jardin botánico de Madird')[0], 'c')
+        ambiguous = TitleMatcher({'historia natural de plantas de mexico tomo primero': {'a'},
+                                  'historia natural de plantas de mexico tomo segundo': {'b'}})
+        self.assertIsNone(ambiguous.match('Historia natural de plantas de México')[0])
+        self.assertIsNone(matcher.match('Flora mexicana')[0])
+
+    def test_linked_names_keep_commas(self):
+        name = 'Acosta, José de, 1540-1600.: https://viaf.org/viaf/2465365'
+        self.assertEqual(values(name), [name])
+
+    def test_unlinked_occupations_do_not_pollute_linked_labels(self):
+        from actors import add_actors
+        from rdflib import RDFS
+        graph = Graph()
+        add_actors(graph, [{'Autor normalizado': 'Actor', 'Rol adquirido':
+                           'Fotógrafo, botánico: https://www.wikidata.org/wiki/Q2374149'}])
+        labels = list(graph.objects(URIRef('https://www.wikidata.org/wiki/Q2374149'), RDFS.label))
+        self.assertEqual([str(v) for v in labels], ['botánico'])
+        self.assertEqual(len(list(graph.objects(PERSON['actor'], AHCMO.acquiredRole))), 2)
+
+    def test_reconciliation_improves_real_composite_titles(self):
+        methods = list(app.state.graph.objects(None, AHCMO.matchMethod))
+        exact = sum(str(m) == 'Título normalizado exacto' for m in methods)
+        self.assertGreater(exact, 200)
 
 
 if __name__ == '__main__':

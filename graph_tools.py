@@ -1,14 +1,15 @@
-"""Indexed RDF neighborhood search and PyVis projection of every RDF triple."""
+"""Indexed semantic-record search and a clean PyVis projection of RDF."""
 import html
 import json
 import re
 import unicodedata
+import math
 from urllib.parse import quote
-from collections import defaultdict, deque
-from rdflib import Literal, RDF, RDFS, URIRef
+from collections import defaultdict
+from rdflib import URIRef
 from rdflib.namespace import FOAF
 from pyvis.network import Network
-from rdf_pipeline import BIBFRAME as BF
+from catalog_graph import CatalogGraph
 
 
 def normalize(text):
@@ -16,44 +17,31 @@ def normalize(text):
                    if not unicodedata.combining(c))
 
 
-def neighborhood(graph, root):
-    """BFS over outgoing descriptions; stop expansion at another actor."""
-    seen, queue, triples = set(), deque([root]), set()
-    while queue:
-        node = queue.popleft()
-        if node in seen:
-            continue
-        seen.add(node)
-        if node != root and (node, RDF.type, FOAF.Person) in graph:
-            continue
-        for triple in graph.triples((node, None, None)):
-            triples.add(triple)
-            _, predicate, target = triple
-            if isinstance(target, URIRef) and predicate != RDF.type:
-                queue.append(target)
-    return triples
-
-
 class GraphSearch:
-    """Inverted character n-grams of RDF BFS neighborhoods, ranked by name."""
-    def __init__(self, graph, people):
-        self.entries = {entry['id']: entry for entry, _ in people}
-        self.names, self.documents = {}, {}
+    """Inverted n-grams over each record and its own semantic neighbors."""
+    def __init__(self, graph, people, projection):
+        self.entries, self.names, self.documents = {}, {}, {}
         self.index = defaultdict(set)
-        for entry, aliases in people:
-            identity = entry['id']
-            self.names[identity] = normalize(entry['label'] + ' ' + aliases)
+        for identity, entry in projection.nodes.items():
+            if entry['kind'] == 'metadato':
+                continue
+            self.entries[identity] = dict(entry, slug=identity.rsplit('/', 1)[-1])
+            names = [entry['label']]
+            if entry['kind'] == 'actor':
+                names.extend(str(value) for predicate in (FOAF.name,) for value in graph.objects(URIRef(identity), predicate))
+            self.names[identity] = normalize(' '.join(names))
             texts = [self.names[identity]]
-            for _, _, obj in neighborhood(graph, URIRef(identity)):
-                if isinstance(obj, Literal):
-                    texts.append(normalize(obj))
+            for field, items in projection.properties[identity].items():
+                if field == 'made':
+                    continue  # A publication query must retrieve its record, not its author.
+                texts.extend(normalize(item['label'] if isinstance(item, dict) else item) for item in items)
             document = ' '.join(texts)
             self.documents[identity] = document
             for length in (1, 2, 3):
                 for i in range(len(document) - length + 1):
                     self.index[document[i:i + length]].add(identity)
 
-    def search(self, query):
+    def search(self, query, kind=None):
         tokens = re.findall(r'\w+', normalize(query))
         candidates = None
         for token in tokens:
@@ -63,47 +51,55 @@ class GraphSearch:
                 candidates = set(hits) if candidates is None else candidates & hits
         if candidates is None:
             candidates = set(self.entries)
-        candidates = [p for p in candidates if all(t in self.documents[p] for t in tokens)]
-        candidates.sort(key=lambda p: (-sum(t in self.names[p] for t in tokens), normalize(self.entries[p]['label'])))
+        candidates = [p for p in candidates if (kind is None or self.entries[p]['kind'] == kind) and all(t in self.documents[p] for t in tokens)]
+        candidates.sort(key=lambda p: (-sum(t in self.names[p] for t in tokens), self.entries[p]['kind'] != 'actor' if not tokens else False, normalize(self.entries[p]['label']), p))
         return [self.entries[p] for p in candidates]
 
 
-def graph_html(graph, label, root=None):
-    triples = sorted(neighborhood(graph, root) if root else graph, key=lambda t: tuple(map(str, t)))
+def graph_html(graph, label, root=None, projection=None):
+    projection = projection or CatalogGraph(graph)
+    records, relations = projection.visual_data(root)
     net = Network(height='80vh', width='100%', directed=True, cdn_resources='in_line')
-    terms = sorted({term for s, _, o in triples for term in (s, o)}, key=lambda t: t.n3())
-    ids = {term: i for i, term in enumerate(terms)}
-    for term in terms:
-        text = str(term) if isinstance(term, Literal) else label(graph, term)
-        color = '#adb8b0' if isinstance(term, Literal) else '#8cabc0'
-        if (term, RDF.type, FOAF.Person) in graph:
-            color = '#246b68'
-        elif (term, RDF.type, BF.Work) in graph:
-            color = '#c65d3a'
-        net.nodes.append({'id': ids[term], 'label': text[:65], 'title': html.escape(text + '\n' + term.n3()),
-                          'color': color, 'shape': 'dot'})
-        if isinstance(term, URIRef) and str(term).startswith('http://ahcm/'):
-            net.nodes[-1]['href'] = ('/#persona=' + quote(str(term).rsplit('/', 1)[-1])
-                                    if (term, RDF.type, FOAF.Person) in graph
-                                    else '/#recurso=' + quote(str(term), safe=''))
-        elif isinstance(term, URIRef) and str(term).startswith(('http://', 'https://')):
-            net.nodes[-1]['href'] = str(term)
-    # Direct insertion avoids PyVis's quadratic duplicate-edge scans on the full graph.
-    net.edges = [{'from': ids[s], 'to': ids[o], 'arrows': 'to',
-                  'title': html.escape(str(p)), 'label': str(p).rsplit('/', 1)[-1].rsplit('#', 1)[-1]}
-                 for s, p, o in triples]
+    colors = {'actor': '#246b68', 'publicacion': '#c65d3a', 'metadato': '#7963ad'}
+    positions = {}
+    if root is None:
+        # A deterministic layout by category avoids a random, unreadable hairball
+        # before physics starts. All vertices remain available to zoom and drag.
+        x_start = 0
+        for kind in ('actor', 'publicacion', 'metadato'):
+            group = sorted((r for r in records if r['kind'] == kind), key=lambda r: (r['label'].casefold(), r['id']))
+            columns = max(1, math.ceil(math.sqrt(len(group))))
+            for index, entry in enumerate(group):
+                positions[entry['id']] = {'x': x_start + index % columns * 100,
+                                          'y': (index // columns - math.ceil(len(group) / columns) / 2) * 100}
+            x_start += columns * 100 + 700
+    for entry in records:
+        identity, text, kind = entry['id'], entry.get('graph_label', entry['label']), entry['kind']
+        href = ('/#persona=' + quote(identity.rsplit('/', 1)[-1]) if kind == 'actor'
+                else '/#recurso=' + quote(identity, safe='') if kind == 'publicacion'
+                else '/#metadato=' + quote(identity, safe=''))
+        net.nodes.append({'id': identity, 'label': text[:65], 'title': html.escape(f"{text} — {entry['degree']} conexiones"),
+                          'color': colors[kind], 'shape': 'dot', 'value': max(1, entry['degree']),
+                          'degree': entry['degree'], 'kind': kind, 'href': href,
+                          **positions.get(identity, {})})
+    net.edges = [{'from': e['from'], 'to': e['to'], 'arrows': 'to', 'value': e['weight'],
+                  'title': html.escape('; '.join(e['predicates']) + f" · {e['weight']} relaciones de origen"),
+                  'label': '; '.join(e['predicates']) if root else '',
+                  'relation': '; '.join(e['predicates']),
+                  'color': {'color': '#87929a', 'opacity': .45 if root else .08, 'highlight': '#c65d3a'}} for e in relations]
     net.set_options(json.dumps({'physics': {'enabled': root is not None, 'solver': 'barnesHut',
                                            'stabilization': {'iterations': 120}},
                                 'layout': {'improvedLayout': False, 'randomSeed': 42},
                                 'interaction': {'hover': True, 'navigationButtons': True, 'hideEdgesOnDrag': True},
-                                'edges': {'smooth': False, 'font': {'size': 9}},
-                                'nodes': {'font': {'size': 12}}}))
+                                'edges': {'smooth': False, 'font': {'size': 9}, 'scaling': {'min': 1, 'max': 8}},
+                                'nodes': {'font': {'size': 12}, 'scaling': {'min': 7, 'max': 42, 'label': {'enabled': False}}}}))
     page = net.generate_html()
     # PyVis includes optional Bootstrap CDN tags even with in_line assets.
     page = re.sub(r'<link\b[^>]*href="https://[^>]*>', '', page)
     page = re.sub(r'<script\b[^>]*src="https://[^>]*>\s*</script>', '', page)
     toolbar = f'''<div style="font:14px system-ui;padding:12px">
-    {len(terms)} nodos · {len(triples)} triples · Verde: actores · Naranja: publicaciones · Gris: valores.
+    {len(records)} nodos · {len(relations)} relaciones visibles · Verde: actores · Naranja: publicaciones · Violeta: metadatos.
+    Tamaño: número de vecinos; grosor: cantidad de relaciones agrupadas. Doble clic para abrir la ficha o los registros relacionados.
     Arrastra los nodos y usa la rueda para acercar.
     <button onclick="network.fit()">Centrar</button>
     <button onclick="network.setOptions({{physics:{{enabled:true}}}})">Activar movimiento</button>
