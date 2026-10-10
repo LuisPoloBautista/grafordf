@@ -154,6 +154,11 @@ def resource_detail(request: Request, uri: str = Query(..., max_length=2000)):
     resource = URIRef(uri)
     if not any(graph.triples((resource, None, None))):
         raise HTTPException(status_code=404, detail='Recurso no encontrado')
+    if (resource, RDF.type, BIBFRAME.Work) in graph:
+        from bibliographic_view import describe_work
+        common, instances = describe_work(graph, resource)
+        return {**compact(graph, resource), 'properties': common, 'instances': instances,
+                'actors': [compact(graph, actor) for actor in graph.subjects(FOAF.made, resource)]}
     properties = {}
     for predicate, obj in sorted(graph.predicate_objects(resource), key=lambda pair: tuple(map(str, pair))):
         properties.setdefault(key(predicate), []).append(compact(graph, obj) if isinstance(obj, URIRef) else str(obj))
@@ -163,8 +168,6 @@ def resource_detail(request: Request, uri: str = Query(..., max_length=2000)):
         for predicate, obj in sorted(graph.predicate_objects(instance), key=lambda pair: tuple(map(str, pair))):
             fields.setdefault(key(predicate), []).append(compact(graph, obj) if isinstance(obj, URIRef) else str(obj))
         instances.append({**compact(graph, instance), 'properties': fields})
-    if resource in request.app.state.projection.works:
-        properties = dict(request.app.state.projection.properties[str(resource)])
     return {**compact(graph, resource), 'properties': properties, 'instances': instances,
             'actors': [compact(graph, actor) for actor in graph.subjects(FOAF.made, resource)]}
 

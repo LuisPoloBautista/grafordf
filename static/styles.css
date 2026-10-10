@@ -56,3 +56,5 @@ iframe { width: 100%; height: 620px; border: 1px solid var(--line); background: 
 
 #type-filter { width: 100%; padding: .6rem; border: 1px solid var(--line); background: white; font: inherit; }
 #related-records li { margin-bottom: .8rem; line-height: 1.6; }
+.detail.bibliography-detail h2 { font-size: 1.3rem; line-height: 1.5; font-weight: 600; }
+.external-authority { display: inline-block; margin-left: .4rem; font-size: .8rem; }

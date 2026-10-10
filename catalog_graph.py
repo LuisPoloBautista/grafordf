@@ -40,21 +40,15 @@ class CatalogGraph:
                 if pred not in actor_predicates:
                     continue
                 self.add(person, pred, obj)
+        from bibliographic_view import describe_work
         for work in sorted(self.works, key=str):
-            for pred, obj in sorted(graph.predicate_objects(work), key=lambda t: tuple(map(str, t))):
-                if pred == BF.contribution:
-                    for agent in graph.objects(obj, BF.agent):
-                        if agent in self.actors:
-                            # foaf:made is the one visible actor-work edge.
-                            continue
-                        self.add(work, pred, agent)
-                elif pred in (BF.language, BF.genreForm, BF.subject, BF.note):
-                    self.add(work, pred, obj)
-            for instance in sorted(graph.objects(work, BF.hasInstance), key=str):
-                for pred, obj in sorted(graph.predicate_objects(instance), key=lambda t: tuple(map(str, t))):
-                    if pred not in (RDF.type, RDFS.label, BF.instanceOf, BF.title,
-                                    AHCMO.sourceFile, AHCMO.sourceRow):
-                        self.add(work, pred, obj, evidence=str(instance))
+            common, instances = describe_work(graph, work)
+            fields = self.properties[str(work)]
+            for block in [common, *(instance['properties'] for instance in instances)]:
+                for field, items in block.items():
+                    for value in items:
+                        if value not in fields[field]:
+                            fields[field].append(value)
         self.degree = defaultdict(set)
         for edge in self.edges.values():
             self.degree[edge['from']].add(edge['to'])

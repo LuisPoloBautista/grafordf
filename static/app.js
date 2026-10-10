@@ -19,6 +19,7 @@ const labels = {
 };
 Object.assign(labels, {title: 'Título', mainTitle: 'Título principal', contribution: 'Autoría', agent: 'Autor', provisionActivity: 'Publicación', date: 'Fecha', language: 'Idioma', genreForm: 'Tipo de documento', subject: 'Área temática', extent: 'Extensión', note: 'Notas', editionStatement: 'Edición', identifiedBy: 'Identificador', electronicLocator: 'Acceso al documento', instanceOf: 'Obra', sourceFile: 'Archivo fuente', sourceRow: 'Fila del CSV', matchMethod: 'Criterio de vinculación', value: 'Valor', 'bibliografia-volumen': 'Volumen', 'bibliografia-pagina-inicio': 'Página inicial', 'bibliografia-pagina-fin': 'Página final', 'bibliografia-no-referencias': 'Número de referencias', 'bibliografia-referentes': 'Referentes', 'bibliografia-pdf': 'PDF disponible', 'bibliografia-tomo': 'Tomo', 'bibliografia-numero': 'Número'});
 const escapeHtml = value => String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+Object.assign(labels, {isbn: 'ISBN', doi: 'DOI', part: 'Volumen o parte', 'bibliografia-area-tematica-campo': 'Área temática', 'bibliografia-autor-declarado': 'Autor declarado', 'bibliografia-doi-original-sin-validar': 'DOI original sin validar', 'bibliografia-isbn-original-sin-validar': 'ISBN original sin validar', 'bibliografia-tipo-de-documento': 'Clasificación documental', 'bibliografia-ano-de-publicacion': 'Fecha original', 'bibliografia-no-paginas': 'Extensión original', 'bibliografia-url': 'Referencia original'});
 const formatKey = key => escapeHtml(labels[key] || key.replace(/([A-Z])/g, ' $1'));
 
 async function getJSON(url) {
@@ -34,7 +35,7 @@ function linkText(text) {
 function renderValue(item) {
   if (!item || typeof item !== 'object') return linkText(item);
   if (item.facet_id) {
-    const external = item.external ? ` <a href="${escapeHtml(item.external)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir fuente externa">↗</a>` : '';
+    const external = item.external ? ` <a class="external-authority" href="${escapeHtml(item.external)}" target="_blank" rel="noopener noreferrer">${item.external.includes('wikidata.org') ? 'Wikidata ↗' : 'Fuente ↗'}</a>` : '';
     return `<a href="#metadato=${encodeURIComponent(item.facet_id)}">${escapeHtml(item.label)}</a>${external}`;
   }
   if (item.id.startsWith('http://ahcm/persona/') && item.id.split('/').length === 5) {
@@ -50,6 +51,18 @@ function propertyTable(properties) {
   return `<table class="metadata"><tbody>${Object.entries(properties)
     .filter(([key]) => !['type', 'identifier', 'label', 'hasInstance'].includes(key))
     .map(([key, items]) => `<tr><th scope="row">${formatKey(key)}</th><td>${items.map(renderValue).join('<br>')}</td></tr>`).join('')}</tbody></table>`;
+}
+
+function bibliographyTable(properties) {
+  const render = item => {
+    if (item && typeof item === 'object') return item.url
+      ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.label)}</a>`
+      : escapeHtml(item.label);
+    return linkText(item);
+  };
+  return `<table class="metadata bibliography-metadata"><tbody>${Object.entries(properties)
+    .filter(([, items]) => items.length)
+    .map(([key, items]) => `<tr><th scope="row">${formatKey(key)}</th><td>${items.map(render).join('<br>')}</td></tr>`).join('')}</tbody></table>`;
 }
 
 async function searchPeople(append = false) {
@@ -98,6 +111,20 @@ async function loadResource(uri) {
   try {
     const resource = await getJSON(`/api/recursos?uri=${encodeURIComponent(uri)}`);
     if (version !== detailVersion) return;
+    if (uri.startsWith('http://ahcm/publicacion/')) {
+      detail.className = 'detail bibliography-detail';
+      const common = resource.properties;
+      if (resource.instances.length === 1) {
+        for (const [key, items] of Object.entries(resource.instances[0].properties)) {
+          common[key] = [...new Map([...(common[key] || []), ...items].map(item => [JSON.stringify(item), item])).values()];
+        }
+      }
+      detail.innerHTML = `<p class="eyebrow">Ficha bibliográfica · BIBFRAME</p><h2>${escapeHtml(resource.label)}</h2>
+        ${bibliographyTable(common)}
+        ${resource.instances.length > 1 ? resource.instances.map((instance, index) => `<section class="publications"><h3>Edición ${index + 1} · ${escapeHtml(instance.label)}</h3>${bibliographyTable(instance.properties)}</section>`).join('') : ''}
+        ${!resource.instances.length ? '<p class="hint">Sin edición bibliográfica reconciliada.</p>' : ''}`;
+      return;
+    }
     detail.innerHTML = `<p class="eyebrow">${uri.startsWith('http://ahcm/publicacion/') ? 'Ficha bibliográfica · BIBFRAME' : 'Ficha de recurso'}</p>
       <h2>${escapeHtml(resource.label)}</h2>${propertyTable(resource.properties)}
       ${resource.actors.length ? `<p>Actores vinculados: ${resource.actors.map(renderValue).join('; ')}</p>` : ''}

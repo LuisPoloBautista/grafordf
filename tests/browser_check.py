@@ -18,10 +18,15 @@ with sync_playwright() as p:
     frame.locator("canvas").wait_for()
     page.locator(".publications li a").first.click()
     page.get_by_text("Ficha bibliográfica · BIBFRAME", exact=True).wait_for()
-    assert page.locator(".publications .metadata").count() > 0
+    assert page.locator(".bibliography-metadata").count() == 1
+    assert page.locator('#detail a[href^="#metadato="]').count() == 0
+    assert page.locator('#detail h3').count() == 0
+    assert page.locator('#detail h2').evaluate('(el) => parseFloat(getComputedStyle(el).fontSize)') <= 22
+    assert page.locator('.bibliography-metadata tr').filter(has_text='Referentes').locator('br').count() > 0
     page.screenshot(path="data/catalogo-publicacion.png", full_page=True)
     page.go_back()
     page.locator("iframe").wait_for()
+    assert page.locator('.external-authority[href*="wikidata.org"]').count() > 0
     page.locator("iframe").scroll_into_view_if_needed()
     page.frame_locator("iframe").locator("canvas").wait_for()
     page.screenshot(path="data/catalogo-actor.png", full_page=True)
@@ -41,6 +46,7 @@ with sync_playwright() as p:
     assert 0 < counts["edges"] < 30000
     assert page.evaluate("new Set(nodes.get().map(n=>n.color)).size") == 3
     assert page.evaluate("nodes.get().some(n=>n.degree>1)")
+    assert page.evaluate("nodes.get().every(n=>n.font.size===12)")
     assert page.evaluate("edges.get().every(e=>!['label','sourceType','agent','comment','type'].includes(e.label))")
     page.get_by_role("button", name="Pausar", exact=True).click()
     page.screenshot(path="data/catalogo-grafo.png")

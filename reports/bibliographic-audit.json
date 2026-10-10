@@ -1,0 +1,475 @@
+{
+  "source": "dataset\\bibliografica.csv",
+  "rows": 1479,
+  "original_cells": 29580,
+  "lost_cells": [],
+  "missing_or_placeholder_by_column": {
+    "No referencias": 1478,
+    "DOI": 1352,
+    "Notas": 1098,
+    "Número": 1211,
+    "ISBN": 1473,
+    "Año de publicación": 118,
+    "Volumen": 854,
+    "Pagina-inicio": 201,
+    "Pagina-fin": 219,
+    "No páginas": 219,
+    "URL": 410,
+    "Tipo de documento": 94,
+    "Edición": 1427,
+    "Tomo": 914,
+    "Idioma": 4,
+    "Referentes": 4,
+    "Autor": 1
+  },
+  "issues_requiring_catalog_review": [
+    {
+      "row": 169,
+      "column": "ISBN",
+      "original": "9.78141E+12",
+      "reason": "ISBN structure/checksum not valid; preserved locally"
+    },
+    {
+      "row": 191,
+      "column": "URL",
+      "original": "AHCM:MEX0-0038.1.144",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 202,
+      "column": "URL",
+      "original": "AHCM:MEX0-0101.1:433",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 203,
+      "column": "URL",
+      "original": "AHCM:MEX0-0101.1.335",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 220,
+      "column": "ISBN",
+      "original": "9.78968E+12",
+      "reason": "ISBN structure/checksum not valid; preserved locally"
+    },
+    {
+      "row": 225,
+      "column": "URL",
+      "original": "68.2",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 267,
+      "column": "URL",
+      "original": "89.2",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 490,
+      "column": "URL",
+      "original": "217",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 509,
+      "column": "URL",
+      "original": "231",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 510,
+      "column": "URL",
+      "original": "231.1",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 513,
+      "column": "URL",
+      "original": "234",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 517,
+      "column": "URL",
+      "original": "237",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 519,
+      "column": "URL",
+      "original": "239",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 525,
+      "column": "URL",
+      "original": "AHCM:MEX0-0101.4.281",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 526,
+      "column": "URL",
+      "original": "AHCM:MEX0-0101.5.251",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 729,
+      "column": "URL",
+      "original": "AHCM:0016-3813.13.26",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 730,
+      "column": "URL",
+      "original": "AHCM:0016-3813.7.1",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 731,
+      "column": "URL",
+      "original": "AHCM:0016-3813.7.285",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 732,
+      "column": "URL",
+      "original": "AHCM:0016-3813.7.381",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 733,
+      "column": "URL",
+      "original": "AHCM:MEX0-0101.2:187",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 734,
+      "column": "URL",
+      "original": "AHCM:MEX0-0101.2.163",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 735,
+      "column": "URL",
+      "original": "AHCM:MEX0-0101.2.215",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 736,
+      "column": "URL",
+      "original": "AHCM:0016-3813.8.210",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 737,
+      "column": "URL",
+      "original": "AHCM:MEX0-0101.4.247",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 738,
+      "column": "URL",
+      "original": "AHCM:MEX0-0101.6:84",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 739,
+      "column": "URL",
+      "original": "AHCM:MEX0-0101.6.347",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 740,
+      "column": "URL",
+      "original": "AHCM:MEX0-0101.4.139",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 741,
+      "column": "URL",
+      "original": "AHCM:0016-3813.2.223",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 742,
+      "column": "URL",
+      "original": "AHCM:0016-3813.3.158a",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 744,
+      "column": "URL",
+      "original": "AHCM:MEX0-0101.3:151",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 787,
+      "column": "URL",
+      "original": "AHCM:0016-3813.2.141",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 788,
+      "column": "URL",
+      "original": "AHCM:0016-3813.4.230",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 789,
+      "column": "URL",
+      "original": "AHCM:0016-3813.4.97",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 790,
+      "column": "DOI",
+      "original": "AHCM:MEX0-0000.2:217",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 817,
+      "column": "DOI",
+      "original": "https://bibdigital.rjb.csic.es/medias/0c/21/6b/63/0c216b63-e42b-47c4-aa22-bc5bba224987/files/LagGen.pdf",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 825,
+      "column": "URL",
+      "original": "*",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 828,
+      "column": "DOI",
+      "original": "http://ahcm.bfm.cinvestav.mx/AHCM/DocumentoController/detalleDocumento/AHCM:0016-3813.28.5",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 833,
+      "column": "URL",
+      "original": "*",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 840,
+      "column": "DOI",
+      "original": "https://ia802708.us.archive.org/18/items/bub_gb_Qu_WZxpub0oC/bub_gb_Qu_WZxpub0oC.pdf",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1006,
+      "column": "URL",
+      "original": "*",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 1008,
+      "column": "DOI",
+      "original": "https://archive.org/details/primeraysegunda01monagoog/page/n12",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1079,
+      "column": "URL",
+      "original": "*",
+      "reason": "No recognizable HTTP URL; preserved locally"
+    },
+    {
+      "row": 1080,
+      "column": "ISBN",
+      "original": "1827",
+      "reason": "ISBN structure/checksum not valid; preserved locally"
+    },
+    {
+      "row": 1100,
+      "column": "ISBN",
+      "original": "1889",
+      "reason": "ISBN structure/checksum not valid; preserved locally"
+    },
+    {
+      "row": 1104,
+      "column": "ISBN",
+      "original": "1990",
+      "reason": "ISBN structure/checksum not valid; preserved locally"
+    },
+    {
+      "row": 1155,
+      "column": "No páginas",
+      "original": "X",
+      "reason": "Uninterpreted extent; preserved locally"
+    },
+    {
+      "row": 1171,
+      "column": "DOI",
+      "original": "https://books.googleusercontent.com/books/content?req=AKW5Qae8UfJyjLJffAu9fXOksHKjupBaXwCUpCuIu5bEXGxgc5yPfzvO6XbICux-w52r6gUxGApBKXW7zOaBw18RLHL5urTTsWPuicxZBgi239M8lixGw_sR8tC0mLqnu48PWJfhkk27g5Xv6cIbsG93WaOd1CcECJFL08wQLWhckw8byR4JRtHTS4ifzYDqDJmJqcOPDcoQP4inbeOfT9skZkNixHTwqW_otItXzakbrMoPerMFcFkH_EGc9XGL087NUBdfJ8YwpKXc7JLx2HcQNosmWk2R1bYahnbe0BRNLbuOvTHjeNE",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1176,
+      "column": "DOI",
+      "original": "https://babel.hathitrust.org/cgi/pt?id=mdp.39015046999465;view=1up;seq=335 lagoma de archipín",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1177,
+      "column": "DOI",
+      "original": "https://archive.org/details/escritosdeleopo00riod/page/128",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1178,
+      "column": "DOI",
+      "original": "https://archive.org/details/escritosdeleopo00riod/page/128",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1179,
+      "column": "DOI",
+      "original": "https://archive.org/details/escritosdeleopo00riod/page/124",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1180,
+      "column": "DOI",
+      "original": "https://babel.hathitrust.org/cgi/pt?id=mdp.39015046999465;view=1up;seq=335",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1181,
+      "column": "DOI",
+      "original": "https://babel.hathitrust.org/cgi/pt?id=hvd.tz1pqy;view=1up;seq=281",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1182,
+      "column": "DOI",
+      "original": "https://babel.hathitrust.org/cgi/pt?id=uc1.b2941311;view=1up;seq=571",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1183,
+      "column": "DOI",
+      "original": "https://archive.org/details/escritosdeleopo00riod/page/124",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1184,
+      "column": "DOI",
+      "original": "https://babel.hathitrust.org/cgi/pt?id=mdp.39015046999465;view=1up;seq=335",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1185,
+      "column": "DOI",
+      "original": "https://babel.hathitrust.org/cgi/pt?id=umn.31951001470347x;view=1up;seq=199 TOMO 6 AÑO 1858",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1186,
+      "column": "DOI",
+      "original": "https://babel.hathitrust.org/cgi/pt?id=mdp.39015046999507;view=1up;seq=363",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1187,
+      "column": "DOI",
+      "original": "https://babel.hathitrust.org/cgi/pt?id=mdp.39015046999432;view=1up;seq=361",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1225,
+      "column": "DOI",
+      "original": "https://archive.org/details/lanatur2118871890mexi/page/210",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1226,
+      "column": "DOI",
+      "original": "https://catalog.hathitrust.org/Record/101584567",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1228,
+      "column": "DOI",
+      "original": "https://ia800205.us.archive.org/34/items/cu31924003319468/cu31924003319468.pdf",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1288,
+      "column": "DOI",
+      "original": "https://www.biodiversitylibrary.org/bibliography/4948#/summary",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    },
+    {
+      "row": 1477,
+      "column": "DOI",
+      "original": "https://hdl.loc.gov/loc.wdl/wdl.19340",
+      "reason": "Not a syntactically recognized DOI; preserved locally"
+    }
+  ],
+  "review_counts": {
+    "ISBN": 5,
+    "URL": 35,
+    "DOI": 23,
+    "No páginas": 1
+  },
+  "language_values": {
+    "Español": 900,
+    "Inglés": 107,
+    "": 1,
+    "Latín": 175,
+    "Francés": 150,
+    "Alemán": 93,
+    "Italiano": 29,
+    "Sueco": 1,
+    "Holandés": 1,
+    "Danés": 15,
+    "Noruego": 1,
+    "Portugués": 1,
+    "Rumano": 1,
+    "-": 3,
+    "Neerlandés": 1
+  },
+  "document_type_normalization": {
+    "Apuntes": "Apuntes",
+    "Articulo": "Artículo",
+    "Artículo": "Artículo",
+    "Carta": "Carta",
+    "Cartas": "Carta",
+    "Catálogo": "Catálogo",
+    "Dictamen": "Dictamen",
+    "Discurso": "Discurso",
+    "Disertación": "Disertación",
+    "Ensayo": "Ensayo",
+    "Extracto": "Extracto",
+    "Folleto": "Folleto",
+    "Fuente secundaria": "Fuente secundaria",
+    "Fuente secundaria de información": "Fuente secundaria de información",
+    "Fuente terciaria": "Fuente terciaria",
+    "Fuente terciaria de información": "Fuente terciaria de información",
+    "Informe": "Informe",
+    "Memoria": "Memoria",
+    "Monografia": "Monografía",
+    "Monografría": "Monografía",
+    "Monografía": "Monografía",
+    "Nota": "Nota",
+    "Notas": "Nota",
+    "Noticia": "Noticia",
+    "Noticias": "Noticia",
+    "Observaciones": "Observaciones",
+    "Reseña": "Reseña",
+    "artículo": "Artículo",
+    "monografía": "Monografía"
+  },
+  "entities": {
+    "Work": 1478,
+    "Instance": 1479,
+    "Item": 82,
+    "Contribution": 1679,
+    "Language": 12,
+    "Doi": 104,
+    "Isbn": 1
+  },
+  "limits": "Identifier syntax/checksum is not registration verification. Missing cells are not errors. Local subjects/genres have no asserted external authority equivalence."
+}

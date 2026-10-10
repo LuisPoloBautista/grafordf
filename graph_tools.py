@@ -79,7 +79,7 @@ def graph_html(graph, label, root=None, projection=None):
                 else '/#recurso=' + quote(identity, safe='') if kind == 'publicacion'
                 else '/#metadato=' + quote(identity, safe=''))
         net.nodes.append({'id': identity, 'label': text[:65], 'title': html.escape(f"{text} — {entry['degree']} conexiones"),
-                          'color': colors[kind], 'shape': 'dot', 'value': max(1, entry['degree']),
+                          'color': colors[kind], 'shape': 'dot', 'font': {'size': 12}, 'value': max(1, entry['degree']),
                           'degree': entry['degree'], 'kind': kind, 'href': href,
                           **positions.get(identity, {})})
     net.edges = [{'from': e['from'], 'to': e['to'], 'arrows': 'to', 'value': e['weight'],
@@ -91,7 +91,7 @@ def graph_html(graph, label, root=None, projection=None):
                                            'stabilization': {'iterations': 120}},
                                 'layout': {'improvedLayout': False, 'randomSeed': 42},
                                 'interaction': {'hover': True, 'navigationButtons': True, 'hideEdgesOnDrag': True},
-                                'edges': {'smooth': False, 'font': {'size': 9}, 'scaling': {'min': 1, 'max': 8}},
+                                'edges': {'smooth': False, 'font': {'size': 9}, 'scaling': {'min': 1, 'max': 8, 'label': {'enabled': False}}},
                                 'nodes': {'font': {'size': 12}, 'scaling': {'min': 7, 'max': 42, 'label': {'enabled': False}}}}))
     page = net.generate_html()
     # PyVis includes optional Bootstrap CDN tags even with in_line assets.

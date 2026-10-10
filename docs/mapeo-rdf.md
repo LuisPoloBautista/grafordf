@@ -42,27 +42,10 @@ nombre normalizado solo cuando esa correspondencia es única.
 
 ## Bibliografía
 
-| Columna | Recorrido BIBFRAME |
-| --- | --- |
-| Titulo | `bf:Work` → `bf:title` → `bf:Title` → `bf:mainTitle`; también etiqueta visible de la obra |
-| Autor | `bf:contribution` → `bf:Contribution` → `bf:agent`; `bf:role` apunta al relator de autor `aut` |
-| Año de publicación | `bf:Instance` → `bf:provisionActivity` → `bf:Publication` → `bf:date` |
-| Idioma | `bf:language` → `bf:Language` |
-| Tipo de documento | `bf:genreForm` → `bf:GenreForm` |
-| Área temática/campo | `bf:subject` → `bf:Topic` |
-| No páginas | `bf:extent` → `bf:Extent` |
-| Notas | `bf:note` → `bf:Note` |
-| Edición | `bf:editionStatement` |
-| DOI / ISBN | `bf:identifiedBy` → `bf:Doi` / `bf:Isbn` → `rdf:value` |
-| URL; PDF cuando es URL | `bf:electronicLocator` |
-| Volumen, páginas inicial/final, referencias, referentes, indicador PDF, tomo, número | Propiedades locales `ahcmo:bibliografia-*`, preservando el texto del CSV |
-
-`bf:agent` es correcto dentro de una contribución: identifica quién contribuyó.
-En el grafo visual se acorta ese recorrido a la relación de autoría, sin dibujar
-un círculo intermedio «Contribution» ni una arista técnica «agent». Cuando el
-autor bibliográfico coincide con un nombre o firma único del catálogo (ignorando
-orden de palabras, fechas de la firma, acentos y puntuación), se reutiliza el actor.
-Los demás autores siguen siendo agentes bibliográficos, sin inventar autoridades.
+El perfil actualizado, sus excepciones y la auditoría de todas las filas están
+en [auditoria-bibframe.md](auditoria-bibframe.md). La transformación se implementa
+en `bibliography.py`; los identificadores, idiomas y tipos documentales se
+normalizan en `bibliographic_normalization.py`.
 
 ## Etiquetas y proyección visual
 
@@ -73,13 +56,13 @@ se ha eliminado del RDF. Los tipos se expresan con `rdf:type`.
 
 `catalog_graph.py` produce una vista semántica a partir del RDF. No dibuja
 clases, etiquetas, procedencia ni nodos auxiliares de títulos, fechas o
-contribuciones. Conserva las relaciones entre actores, publicaciones y sus
-metadatos. Las ediciones siguen separadas en RDF y en la ficha; la vista gráfica
-agrupa los metadatos repetidos de una misma obra. Esto no modifica la descarga RDF.
+contribuciones. Conserva las relaciones de los actores con sus metadatos y publicaciones.
+Las publicaciones aparecen únicamente como nodos con su título; sus metadatos
+bibliográficos no se dibujan. Las ediciones siguen separadas en RDF y en la ficha. Esto no modifica la descarga RDF.
 
 Dos actores conectados al mismo metadato o publicación comparten el mismo nodo:
 no se crea una arista de colaboración que la fuente no haya documentado. Pulsar
-un metadato abre los registros que lo utilizan; el doble clic hace lo mismo en
+un metadato de actor abre los registros que lo utilizan; el doble clic hace lo mismo en
 PyVis. Los enlaces externos conservan un acceso separado mediante ↗.
 
 El tamaño de los nodos se escala linealmente con su grado (vecinos distintos en
@@ -101,8 +84,9 @@ pasar el cursor. Actores: verde; publicaciones: naranja; metadatos: violeta.
 
 El criterio, el título original y la puntuación se guardan en la contribución
 RDF; la puntuación es una heurística, no una probabilidad. Los casos ambiguos
-conservan una obra sin edición reconciliada. Títulos idénticos se agrupan como
-antes; esto no resuelve homónimos bibliográficos y requiere revisión catalográfica.
+conservan una obra sin edición reconciliada. La identidad de obra combina título, autores e idioma normalizados.
+Los títulos homónimos con autoría o idioma diferentes no se fusionan. Esta
+heurística no sustituye la revisión catalográfica.
 
 La búsqueda indexa nombres/títulos y metadatos propios del registro mediante
 n-gramas invertidos de 1–3 caracteres. No propaga el título de una obra al
@@ -118,3 +102,7 @@ de la proyección, con paginación.
 - [BIO: eventos biográficos](https://vocab.org/bio/).
 - [Dublin Core: description](https://www.dublincore.org/specifications/dublin-core/dcmi-terms/terms/description/).
 - [BIBFRAME 2: agentes y roles](https://www.loc.gov/bibframe/docs/pdf/bf2-roles-march2017.pdf).
+
+Las etiquetas conservan tamaño fijo: nodos 12 px y aristas 9 px. Los enlaces
+a Wikidata y la navegación a metadatos compartidos coexisten en la ficha del
+actor. La ficha bibliográfica no tiene navegación por metadatos compartidos.

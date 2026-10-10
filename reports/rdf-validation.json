@@ -1,0 +1,16 @@
+{
+  "syntax": {
+    "format": "Turtle 1.1",
+    "triples": 112887,
+    "rdflib_roundtrip_isomorphic": true
+  },
+  "semantics": {
+    "ontology_version": [
+      "2.0.1"
+    ],
+    "ontology_sha256": "bfceb1f39984df0cfd98ce8254793af6b971a9a43309d3d9b7ca1e89f6385227",
+    "errors": [],
+    "error_counts": {},
+    "scope": "BF term existence/deprecation, resource/literal kind, explicit domain/range with subclass closure, and local structural profile. Not a complete OWL reasoner."
+  }
+}

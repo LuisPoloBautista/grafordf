@@ -209,6 +209,47 @@ class ApplicationTests(unittest.TestCase):
         exact = sum(str(m) == 'Título normalizado exacto' for m in methods)
         self.assertGreater(exact, 200)
 
+    def test_bibframe_semantics_and_lossless_source(self):
+        from bibframe_quality import validate_semantics
+        from bibliographic_audit import audit
+        self.assertEqual(validate_semantics(app.state.graph)['errors'], [])
+        report = audit(app.state.graph)
+        self.assertEqual(report['rows'], 1479)
+        self.assertEqual(report['original_cells'], 29580)
+        self.assertEqual(report['lost_cells'], [])
+
+    def test_graph_excludes_bibliographic_metadata(self):
+        for root in (None, PERSON['jose-de-acosta']):
+            nodes, edges = app.state.projection.visual_data(root)
+            kinds = {n['id']: n['kind'] for n in nodes}
+            self.assertTrue(all(kinds[e['from']] == 'actor' for e in edges))
+        record = self.client.get('/api/personas/jose-de-acosta').json()
+        linked = [v for values_ in record['properties'].values() for v in values_
+                  if isinstance(v, dict) and 'wikidata.org' in v.get('external', '')]
+        self.assertTrue(linked)
+        self.assertTrue(all(v.get('facet_id') for v in linked))
+
+    def test_identifiers_and_conservative_copy_detection(self):
+        from bibliographic_normalization import doi, isbn, bhl_copy
+        self.assertIsNone(isbn('1827'))
+        self.assertIsNone(isbn('9.78141E+12'))
+        self.assertEqual(isbn('978-84-87111-79-2'), '9788487111792')
+        self.assertIsNone(doi('https://www.biodiversitylibrary.org/item/12'))
+        self.assertEqual(doi('https://doi.org/10.1234/test'), '10.1234/test')
+        self.assertIsNone(bhl_copy('https://www.biodiversitylibrary.org/bibliography/12', 'Monografía'))
+        self.assertIsNone(bhl_copy('https://www.biodiversitylibrary.org/item/12', 'Artículo'))
+
+    def test_semantic_validation_rejects_parseable_wrong_model(self):
+        from bibframe_quality import validate_semantics
+        graph = Graph()
+        node = URIRef('http://example.org/instance')
+        graph.add((node, RDF.type, BIBFRAME.Instance))
+        graph.add((node, BIBFRAME.electronicLocator, Literal('https://example.org/book')))
+        graph.add((node, BIBFRAME.nonexistentProperty, Literal('invalid')))
+        codes = validate_semantics(graph)['error_counts']
+        for code in ('unknown_property', 'domain', 'object_property_literal', 'instance_work_cardinality'):
+            self.assertIn(code, codes)
+
 
 if __name__ == '__main__':
     unittest.main()

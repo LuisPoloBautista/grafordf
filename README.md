@@ -46,7 +46,7 @@ resultado sustituto. El índice de n-gramas se construye sobre los nombres,
 títulos y metadatos propios de cada registro. Soporta acentos y palabras en
 cualquier orden. Los resultados se ordenan por coincidencia en nombre o título.
 
-Pulsar un metadato recupera los registros asociados, con paginación. Si existe
+En la ficha de actor, pulsar un metadato recupera los registros asociados, con paginación. Si existe
 una fuente externa se ofrece un enlace ↗ separado. Las URI locales representan
 instituciones, lugares o conceptos sin identificador externo documentado.
 
@@ -54,7 +54,7 @@ La reconciliación bibliográfica reconoce listas de títulos respetando comas
 internas, coincidencias normalizadas, abreviaciones únicas y variantes
 ortográficas de alta confianza. Se conserva en RDF el título original, el
 criterio y la puntuación. Las coincidencias ambiguas no se asignan. La agrupación
-por título no sustituye una revisión catalográfica de obras homónimas.
+por título, autoría e idioma no sustituye una revisión catalográfica de obras homónimas.
 
 ## Grafo
 
@@ -106,3 +106,23 @@ puerto 8011 y ejecutar `python tests/browser_check.py`. La variable
 `uvicorn app:app --host 0.0.0.0 --port $PORT`. Incluir los dos CSV fuente.
 No requiere disco persistente. Después de actualizar el código se debe
 reiniciar o desplegar nuevamente el servicio.
+
+## BIBFRAME 2.0 y auditoría
+
+Las publicaciones se muestran únicamente por título en ambos grafos. Sus
+metadatos completos están en la ficha bibliográfica, sin navegación a metadatos
+compartidos ni repetición entre obra y edición. Las etiquetas de los grafos
+mantienen tamaño fijo aunque cambie el grado.
+
+La conversión conserva cada celda original del CSV en entidades de procedencia.
+Consulta [el perfil y la auditoría](docs/auditoria-bibframe.md).
+
+```powershell
+python rdf_pipeline.py
+python bibframe_quality.py
+python bibliographic_audit.py
+```
+
+Los dos últimos comandos generan informes separados en `reports/`:
+validación sintáctica/semántica y conservación de datos/revisión catalográfica.
+La ontología oficial se incluye en `vocab/` para validar sin conexión.
