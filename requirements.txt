@@ -2,3 +2,5 @@
 uvicorn==0.53.0
 rdflib==7.1.4
 pyvis==0.3.2
+networkx==3.6.1
+numpy>=1.26,<3

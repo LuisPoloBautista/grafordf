@@ -16,6 +16,9 @@ with sync_playwright() as p:
     page.locator(".metadata").wait_for()
     frame = page.frame_locator("iframe")
     frame.locator("canvas").wait_for()
+    subgraph = page.frames[1]
+    assert subgraph.evaluate("nodes.get('http://ahcm/persona/jose-de-acosta').fixed.x")
+    assert subgraph.evaluate("network.getPositions(['http://ahcm/persona/jose-de-acosta'])['http://ahcm/persona/jose-de-acosta'].x === 0")
     page.locator(".publications li a").first.click()
     page.get_by_text("Ficha bibliográfica · BIBFRAME", exact=True).wait_for()
     assert page.locator(".bibliography-metadata").count() == 1
@@ -47,6 +50,8 @@ with sync_playwright() as p:
     assert page.evaluate("new Set(nodes.get().map(n=>n.color)).size") == 3
     assert page.evaluate("nodes.get().some(n=>n.degree>1)")
     assert page.evaluate("nodes.get().every(n=>n.font.size===12)")
+    assert page.evaluate("nodes.get().every(n=>network.getConnectedNodes(n.id).length>0)")
+    assert page.evaluate("new Set(nodes.get().map(n=>n.community)).size>1")
     assert page.evaluate("edges.get().every(e=>!['label','sourceType','agent','comment','type'].includes(e.label))")
     page.get_by_role("button", name="Pausar", exact=True).click()
     page.screenshot(path="data/catalogo-grafo.png")

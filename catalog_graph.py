@@ -122,6 +122,7 @@ class CatalogGraph:
             edges = [edge for edge in edges if edge['from'] in {root, *works}
                      or (edge['to'] in targets and self.nodes[edge['from']]['kind'] == 'actor')]
         visible = {identity for e in edges for identity in (e['from'], e['to'])}
-        visible.update([str(root)] if root else (str(s) for s in self.actors | self.works))
+        if root:
+            visible.add(str(root))
         nodes = [dict(self.nodes[i], degree=len(self.degree[i])) for i in sorted(visible)]
         return nodes, [dict(e, predicates=sorted(e['predicates']), weight=len(e['evidence'])) for e in edges]

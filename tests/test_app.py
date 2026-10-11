@@ -223,11 +223,25 @@ class ApplicationTests(unittest.TestCase):
             nodes, edges = app.state.projection.visual_data(root)
             kinds = {n['id']: n['kind'] for n in nodes}
             self.assertTrue(all(kinds[e['from']] == 'actor' for e in edges))
+            if root is None:
+                self.assertEqual(set(kinds), {n for edge in edges for n in (edge['from'], edge['to'])})
         record = self.client.get('/api/personas/jose-de-acosta').json()
         linked = [v for values_ in record['properties'].values() for v in values_
                   if isinstance(v, dict) and 'wikidata.org' in v.get('external', '')]
         self.assertTrue(linked)
         self.assertTrue(all(v.get('facet_id') for v in linked))
+
+    def test_actor_is_centered_and_global_layout_groups_connected_nodes(self):
+        from graph_layout import positions_for
+        root = PERSON['jose-de-acosta']
+        nodes, edges = app.state.projection.visual_data(root)
+        positions = positions_for(nodes, edges, root)
+        self.assertEqual(set(positions), {n['id'] for n in nodes})
+        self.assertEqual(positions[str(root)], {'x': 0, 'y': 0, 'fixed': {'x': True, 'y': True}})
+        nodes, edges = app.state.projection.visual_data()
+        positions = positions_for(nodes, edges)
+        self.assertEqual(set(positions), {n['id'] for n in nodes})
+        self.assertGreater(len({p['community'] for p in positions.values()}), 1)
 
     def test_identifiers_and_conservative_copy_detection(self):
         from bibliographic_normalization import doi, isbn, bhl_copy

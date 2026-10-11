@@ -126,3 +126,20 @@ python bibliographic_audit.py
 Los dos últimos comandos generan informes separados en `reports/`:
 validación sintáctica/semántica y conservación de datos/revisión catalográfica.
 La ontología oficial se incluye en `vocab/` para validar sin conexión.
+
+### Distribución de los grafos
+
+El subgrafo coloca al actor fijo en el origen y organiza sus vecinos en anillos
+por distancia. El global excluye nodos sin conexiones: solo muestra actores y
+sus atributos y títulos vinculados. Esta selección visual no elimina registros
+del catálogo, de la búsqueda ni del RDF.
+
+`graph_layout.py` calcula comunidades Louvain con pesos de las relaciones y
+semilla fija, y distribuye cada grupo con Fruchterman–Reingold. Las comunidades
+son agrupaciones visuales, no afirmaciones históricas añadidas al RDF. Se
+mantienen los colores por tipo de nodo. Ambos grafos inician pausados para
+conservar su distribución; se puede activar el movimiento, arrastrar y ampliar.
+El actor central permanece fijo aun al activar el movimiento.
+
+Referencias: [Louvain](https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.community.louvain.louvain_communities.html)
+y [distribución por fuerzas](https://networkx.org/documentation/stable/reference/generated/networkx.drawing.layout.spring_layout.html).

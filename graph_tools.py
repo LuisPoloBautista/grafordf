@@ -3,13 +3,13 @@ import html
 import json
 import re
 import unicodedata
-import math
 from urllib.parse import quote
 from collections import defaultdict
 from rdflib import URIRef
 from rdflib.namespace import FOAF
 from pyvis.network import Network
 from catalog_graph import CatalogGraph
+from graph_layout import positions_for
 
 
 def normalize(text):
@@ -61,18 +61,7 @@ def graph_html(graph, label, root=None, projection=None):
     records, relations = projection.visual_data(root)
     net = Network(height='80vh', width='100%', directed=True, cdn_resources='in_line')
     colors = {'actor': '#246b68', 'publicacion': '#c65d3a', 'metadato': '#7963ad'}
-    positions = {}
-    if root is None:
-        # A deterministic layout by category avoids a random, unreadable hairball
-        # before physics starts. All vertices remain available to zoom and drag.
-        x_start = 0
-        for kind in ('actor', 'publicacion', 'metadato'):
-            group = sorted((r for r in records if r['kind'] == kind), key=lambda r: (r['label'].casefold(), r['id']))
-            columns = max(1, math.ceil(math.sqrt(len(group))))
-            for index, entry in enumerate(group):
-                positions[entry['id']] = {'x': x_start + index % columns * 100,
-                                          'y': (index // columns - math.ceil(len(group) / columns) / 2) * 100}
-            x_start += columns * 100 + 700
+    positions = positions_for(records, relations, root)
     for entry in records:
         identity, text, kind = entry['id'], entry.get('graph_label', entry['label']), entry['kind']
         href = ('/#persona=' + quote(identity.rsplit('/', 1)[-1]) if kind == 'actor'
@@ -86,8 +75,8 @@ def graph_html(graph, label, root=None, projection=None):
                   'title': html.escape('; '.join(e['predicates']) + f" · {e['weight']} relaciones de origen"),
                   'label': '; '.join(e['predicates']) if root else '',
                   'relation': '; '.join(e['predicates']),
-                  'color': {'color': '#87929a', 'opacity': .45 if root else .08, 'highlight': '#c65d3a'}} for e in relations]
-    net.set_options(json.dumps({'physics': {'enabled': root is not None, 'solver': 'barnesHut',
+                  'color': {'color': '#87929a', 'opacity': .45 if root else .25, 'highlight': '#c65d3a'}} for e in relations]
+    net.set_options(json.dumps({'physics': {'enabled': False, 'solver': 'barnesHut',
                                            'stabilization': {'iterations': 120}},
                                 'layout': {'improvedLayout': False, 'randomSeed': 42},
                                 'interaction': {'hover': True, 'navigationButtons': True, 'hideEdgesOnDrag': True},
@@ -97,11 +86,12 @@ def graph_html(graph, label, root=None, projection=None):
     # PyVis includes optional Bootstrap CDN tags even with in_line assets.
     page = re.sub(r'<link\b[^>]*href="https://[^>]*>', '', page)
     page = re.sub(r'<script\b[^>]*src="https://[^>]*>\s*</script>', '', page)
+    center_action = 'network.fit();network.moveTo({position:{x:0,y:0}})' if root is not None else 'network.fit()'
     toolbar = f'''<div style="font:14px system-ui;padding:12px">
     {len(records)} nodos · {len(relations)} relaciones visibles · Verde: actores · Naranja: publicaciones · Violeta: metadatos.
     Tamaño: número de vecinos; grosor: cantidad de relaciones agrupadas. Doble clic para abrir la ficha o los registros relacionados.
     Arrastra los nodos y usa la rueda para acercar.
-    <button onclick="network.fit()">Centrar</button>
+    <button onclick="{center_action}">Centrar</button>
     <button onclick="network.setOptions({{physics:{{enabled:true}}}})">Activar movimiento</button>
     <button onclick="network.setOptions({{physics:{{enabled:false}}}})">Pausar</button>
     <button onclick="const selected=network.getSelectedNodes();if(selected.length){{const keep=new Set([...selected,...selected.flatMap(id=>network.getConnectedNodes(id))]);nodes.update(nodes.get().map(n=>({{id:n.id,hidden:!keep.has(n.id)}})));network.fit()}}">Ver entorno seleccionado</button>
@@ -115,4 +105,6 @@ def graph_html(graph, label, root=None, projection=None):
           else window.open(node.href, '_blank', 'noopener,noreferrer'); }
       }
     });</script>'''
+    if root is not None:
+        navigation += "<script>network.once('afterDrawing',()=>network.moveTo({position:{x:0,y:0}}));</script>"
     return page.replace('<body>', '<body>' + toolbar).replace('</body>', navigation + '</body>')
